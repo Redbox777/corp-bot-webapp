@@ -6,92 +6,35 @@
     <title>Корпорация с нуля</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #fff;
-            min-height: 100vh;
-            padding: 16px;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; min-height: 100vh; padding: 16px; }
         .header { text-align: center; padding: 12px 0; }
         .title { font-size: 22px; font-weight: 700; }
         .subtitle { font-size: 13px; color: #a0a0b0; margin-top: 4px; }
-        
-        .balance-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            padding: 20px;
-            margin: 16px 0;
-            text-align: center;
-        }
+        .balance-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; padding: 20px; margin: 16px 0; text-align: center; }
         .balance-label { font-size: 12px; opacity: 0.9; }
         .balance-value { font-size: 36px; font-weight: 800; margin: 8px 0; }
         .passive-income { font-size: 13px; opacity: 0.95; }
-        
         .stats-row { display: flex; justify-content: space-around; padding: 12px 0; }
         .stat { text-align: center; }
         .stat-val { font-size: 18px; font-weight: 600; }
         .stat-label { font-size: 11px; color: #a0a0b0; margin-top: 4px; }
-        
-        .main-btn {
-            width: 100%;
-            padding: 18px;
-            border: none;
-            border-radius: 16px;
-            font-size: 17px;
-            font-weight: 600;
-            background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
-            color: white;
-            margin: 8px 0;
-        }
-        .daily-btn {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-        
-        .shop-section, .achievements-section { margin-top: 24px; }
-        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
-        
-        .upgrade-card, .achievement-card {
-            background: rgba(255,255,255,0.08);
-            border-radius: 14px;
-            padding: 14px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .achievement-card.locked { opacity: 0.5; }
-        .upgrade-info, .achievement-info { flex: 1; }
-        .upgrade-name, .achievement-name { font-weight: 600; font-size: 15px; }
-        .upgrade-desc, .achievement-desc { font-size: 12px; color: #a0a0b0; margin-top: 2px; }
-        .upgrade-owned { font-size: 11px; color: #66d9a8; margin-top: 4px; }
-        
-        .buy-btn, .claim-btn {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            border: none;
-            padding: 10px 16px;
-            border-radius: 10px;
-            color: white;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        .buy-btn:disabled { background: #555; }
-        
+        .main-btn { width: 100%; padding: 18px; border: none; border-radius: 16px; font-size: 17px; font-weight: 600; background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); color: white; margin: 8px 0; }
+        .referral-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-        .tab {
-            flex: 1;
-            padding: 12px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-weight: 600;
-        }
+        .tab { flex: 1; padding: 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 12px; color: white; font-weight: 600; }
         .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .upgrade-card, .ref-card, .leader-item { background: rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .leader-item { padding: 10px; }
+        .rank-num { width: 30px; height: 30px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; }
+        .rank-1 { background: gold; color: black; }
+        .rank-2 { background: silver; color: black; }
+        .rank-3 { background: #cd7f32; color: black; }
+        .buy-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; padding: 10px 16px; border-radius: 10px; color: white; font-size: 13px; font-weight: 600; }
+        .buy-btn:disabled { background: #555; }
+        .copy-btn { background: rgba(255,255,255,0.2); border: none; padding: 10px 16px; border-radius: 10px; color: white; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -107,36 +50,25 @@
     </div>
     
     <div class="stats-row">
-        <div class="stat">
-            <div class="stat-val" id="level">1</div>
-            <div class="stat-label">Уровень</div>
-        </div>
-        <div class="stat">
-            <div class="stat-val" id="clicks">0</div>
-            <div class="stat-label">Кликов</div>
-        </div>
-        <div class="stat">
-            <div class="stat-val" id="income">0</div>
-            <div class="stat-label">Доход/сек</div>
-        </div>
+        <div class="stat"><div class="stat-val" id="level">1</div><div class="stat-label">Уровень</div></div>
+        <div class="stat"><div class="stat-val" id="clicks">0</div><div class="stat-label">Кликов</div></div>
+        <div class="stat"><div class="stat-val" id="income">0</div><div class="stat-label">Доход/сек</div></div>
     </div>
     
     <button class="main-btn" id="workBtn" onclick="doWork()">💼 Работать (+10$)</button>
-    <button class="main-btn daily-btn" id="dailyBtn" onclick="claimDaily()">🎁 Ежедневный бонус</button>
+    <button class="main-btn referral-btn" onclick="openReferral()">👥 Пригласить друга</button>
     
     <div class="tabs">
-        <button class="tab active" onclick="switchTab('shop')">🛒 Магазин</button>
-        <button class="tab" onclick="switchTab('achievements')">🏆 Достижения</button>
+        <button class="tab active" onclick="switchTab('shop')"> Магазин</button>
+        <button class="tab" onclick="switchTab('leaderboard')">🏆 Топ</button>
     </div>
     
     <div id="shop-tab" class="tab-content active">
-        <div class="section-title">Бизнесы</div>
         <div id="shop-list"></div>
     </div>
     
-    <div id="achievements-tab" class="tab-content">
-        <div class="section-title">Достижения</div>
-        <div id="achievements-list"></div>
+    <div id="leaderboard-tab" class="tab-content">
+        <div id="leaderboard-list"></div>
     </div>
 
     <script>
@@ -144,20 +76,32 @@
         tg.expand(); tg.ready();
         const userId = tg.initDataUnsafe?.user?.id || 'test';
         let playerData = {};
-        let achievements = [];
         
+        // Проверка реферальной ссылки при старте
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+        if (refCode && !localStorage.getItem('ref_bound_' + userId)) {
+            fetch(`/api/bind_referral/${userId}/${refCode}`, { method: 'POST' })
+                .then(r => r.json())
+                .then(d => {
+                    if(d.success) {
+                        localStorage.setItem('ref_bound_' + userId, '1');
+                        tg.showAlert(`🎁 Друг пригласил вас! Бонус +${d.bonus}$`);
+                    }
+                });
+        }
+
         async function api(path, method='GET') {
             const res = await fetch(`/api${path}`, { method });
             return res.json();
         }
-        
+
         async function loadPlayer() {
             playerData = await api(`/player/${userId}`);
             updateUI();
             loadShop();
-            loadAchievements();
         }
-        
+
         async function doWork() {
             const btn = document.getElementById('workBtn');
             if (btn.disabled) return;
@@ -170,21 +114,21 @@
             } catch(e) { tg.showAlert('Ошибка'); }
             btn.disabled = false;
         }
-        
-        async function claimDaily() {
-            try {
-                const res = await fetch(`/api/daily`, { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    tg.showAlert(`🎁 Бонус: ${data.bonus}$ (серия: ${data.streak} дня)`);
-                    playerData = await api(`/player/${userId}`);
-                    updateUI();
-                } else if (data.already_claimed) {
-                    tg.showAlert(data.message);
+
+        async function openReferral() {
+            const data = await api(`/referral_link/${userId}?bot=MagnatZeroBot`); // Укажите ник вашего бота
+            tg.showPopup({
+                title: 'Пригласи друга',
+                message: `Твоя ссылка: ${data.link}`,
+                buttons: [{type: 'default', text: 'Скопировать'}, {type: 'cancel'}]
+            }, (btnId) => {
+                if(btnId === 'default') {
+                    navigator.clipboard.writeText(data.link);
+                    tg.showAlert('Ссылка скопирована!');
                 }
-            } catch(e) { tg.showAlert('Ошибка'); }
+            });
         }
-        
+
         async function loadShop() {
             const upgrades = await api('/shop');
             const container = document.getElementById('shop-list');
@@ -192,57 +136,54 @@
             for (const [id, data] of Object.entries(upgrades)) {
                 const owned = playerData.upgrades?.[id] || 0;
                 const price = Math.floor(data.cost * Math.pow(1.15, owned));
-                html += `
-                    <div class="upgrade-card">
-                        <div class="upgrade-info">
-                            <div class="upgrade-name">${data.icon} ${data.name}</div>
-                            <div class="upgrade-desc">+${data.income}$/сек</div>
-                            ${owned > 0 ? `<div class="upgrade-owned">Владеете: ${owned}</div>` : ''}
-                        </div>
-                        <div>
-                            <div style="font-size:14px;font-weight:600;margin-bottom:6px">${price}$</div>
-                            <button class="buy-btn" onclick="buyUpgrade('${id}', ${price})" ${playerData.balance < price ? 'disabled' : ''}>Купить</button>
-                        </div>
-                    </div>`;
+                html += `<div class="upgrade-card">
+                    <div style="flex:1">
+                        <div style="font-weight:600">${data.icon} ${data.name}</div>
+                        <div style="font-size:12px;color:#a0a0b0">+${data.income}$/сек</div>
+                        ${owned ? `<div style="font-size:11px;color:#66d9a8">Куплено: ${owned}</div>` : ''}
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-weight:600">${price}$</div>
+                        <button class="buy-btn" onclick="buyUpgrade('${id}', ${price})" ${playerData.balance < price ? 'disabled' : ''}>Купить</button>
+                    </div>
+                </div>`;
             }
             container.innerHTML = html;
         }
-        
+
         async function buyUpgrade(id, price) {
-            if (playerData.balance < price) { tg.showAlert('Недостаточно монет'); return; }
+            if (playerData.balance < price) { tg.showAlert('Мало денег'); return; }
             try {
                 const res = await fetch(`/api/buy/${userId}/${id}`, { method: 'POST' });
                 const data = await res.json();
                 if (data.error) tg.showAlert(data.error);
                 else {
                     playerData = {...playerData, ...data};
-                    updateUI();
-                    loadShop();
+                    updateUI(); loadShop();
                     tg.HapticFeedback.notificationOccurred('success');
                 }
             } catch(e) { tg.showAlert('Ошибка'); }
         }
-        
-        async function loadAchievements() {
-            achievements = await api('/achievements');
-            const container = document.getElementById('achievements-list');
-            const achieved = playerData.achievements?.map(a => a.id) || [];
+
+        async function loadLeaderboard() {
+            const list = await api('/leaderboard');
+            const container = document.getElementById('leaderboard-list');
             let html = '';
-            for (const ach of achievements) {
-                const unlocked = achieved.includes(ach.id);
-                html += `
-                    <div class="achievement-card ${unlocked ? '' : 'locked'}">
-                        <div class="achievement-info">
-                            <div class="achievement-name">${ach.icon} ${ach.name}</div>
-                            <div class="achievement-desc">${ach.desc}</div>
-                            <div style="font-size:11px;color:#66d9a8;margin-top:4px">Награда: ${ach.reward}$</div>
-                        </div>
-                        <div style="font-size:24px">${unlocked ? '✅' : '🔒'}</div>
-                    </div>`;
-            }
+            list.forEach(p => {
+                const rankClass = p.rank <= 3 ? `rank-${p.rank}` : '';
+                const isMe = p.chat_id == userId ? 'style="background:rgba(255,255,255,0.15)"' : '';
+                html += `<div class="leader-item" ${isMe}>
+                    <div class="rank-num ${rankClass}">${p.rank}</div>
+                    <div style="flex:1">
+                        <div style="font-weight:600">Игрок #${p.chat_id}</div>
+                        <div style="font-size:12px;color:#a0a0b0">Уровень ${p.level}</div>
+                    </div>
+                    <div style="font-weight:bold;color:#66d9a8">${p.balance}$</div>
+                </div>`;
+            });
             container.innerHTML = html;
         }
-        
+
         function updateUI() {
             document.getElementById('balance').textContent = playerData.balance + '$';
             document.getElementById('passive').textContent = '+' + (playerData.passive_income||0) + '$/сек';
@@ -250,21 +191,22 @@
             document.getElementById('clicks').textContent = playerData.clicks || 0;
             document.getElementById('income').textContent = playerData.passive_income || 0;
         }
-        
+
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tab + '-tab').classList.add('active');
+            if(tab === 'leaderboard') loadLeaderboard();
         }
-        
+
         setInterval(() => {
             if (playerData.passive_income > 0) {
                 playerData.balance += playerData.passive_income;
                 updateUI();
             }
         }, 1000);
-        
+
         loadPlayer();
     </script>
 </body>

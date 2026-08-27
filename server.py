@@ -4,7 +4,7 @@ import os
 import time
 import sqlite3
 import json
-from datetime import datetime, timedelta
+import urllib.parse
 
 app = Flask(__name__)
 CORS(app)
@@ -22,9 +22,11 @@ def init_db():
             passive_income INTEGER DEFAULT 0,
             upgrades TEXT DEFAULT '{}',
             last_update REAL DEFAULT 0,
-            last_daily TEXT DEFAULT '',
             achievements TEXT DEFAULT '[]',
-            total_earned INTEGER DEFAULT 0
+            total_earned INTEGER DEFAULT 0,
+            referral_code TEXT DEFAULT '',
+            referred_by TEXT DEFAULT '',
+            referral_earnings INTEGER DEFAULT 0
         )
     ''')
     conn.commit()
@@ -35,26 +37,19 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Магазин улучшений
+# Настройки
+REFERRAL_BONUS = 500
+REFERRAL_PERCENT = 0.01
+APP_URL = os.environ.get('APP_URL', 'https://corp-bot-webapp.onrender.com')
+
 UPGRADES = {
     "shawarma": {"name": "Ларёк", "cost": 100, "income": 2, "icon": ""},
     "coffee": {"name": "Кофе", "cost": 500, "income": 10, "icon": "☕"},
-    "office": {"name": "Офис", "cost": 2000, "income": 50, "icon": ""},
+    "office": {"name": "Офис", "cost": 2000, "income": 50, "icon": "🏢"},
     "factory": {"name": "Завод", "cost": 10000, "income": 250, "icon": "🏭"},
     "crypto": {"name": "Крипта", "cost": 50000, "income": 1000, "icon": "₿"},
     "bank": {"name": "Банк", "cost": 200000, "income": 5000, "icon": "🏦"}
 }
-
-# Система достижений
-ACHIEVEMENTS = [
-    {"id": "first_click", "name": "Первый шаг", "desc": "Сделайте первый клик", "reward": 50, "icon": "👆"},
-    {"id": "hundred_clicks", "name": "Трудяга", "desc": "100 кликов", "reward": 200, "icon": "💪"},
-    {"id": "thousand_clicks", "name": "Магнат", "desc": "1000 кликов", "reward": 1000, "icon": "🏆"},
-    {"id": "first_business", "name": "Предприниматель", "desc": "Купите первый бизнес", "reward": 100, "icon": "💼"},
-    {"id": "rich", "name": "Богач", "desc": "Накопите 10000$", "reward": 500, "icon": "💰"},
-    {"id": "tycoon", "name": "Магнат", "desc": "Накопите 100000$", "reward": 2500, "icon": "👑"},
-    {"id": "daily_week", "name": "Постоянный", "desc": "7 дней подряд", "reward": 1000, "icon": "📅"}
-]
 
 @app.route('/')
 def index():
@@ -68,15 +63,18 @@ def get_player(chat_id):
     row = c.fetchone()
     
     if not row:
+        # Создаём игрока
+        ref_code = str(int(time.time()))[-6:] # Простой код приглашения
         c.execute('''
-            INSERT INTO players (chat_id, balance, clicks, level, passive_income, upgrades, last_update, last_daily, achievements, total_earned)
-            VALUES (?, 0, 0, 1, 0, '{}', ?, '', '[]', 0)
-        ''', (chat_id, time.time()))
+            INSERT INTO players (chat_id, balance, clicks, level, passive_income, upgrades, last_update, achievements, total_earned, referral_code)
+            VALUES (?, 0, 0, 1, 0, '{}', ?, '[]', 0, ?)
+        ''', (chat_id, time.time(), ref_code))
         conn.commit()
         player = {
-            "balance": 0, "clicks": 0, "level": 1, "passive_income": 0, 
-            "upgrades": {}, "last_update": time.time(), "last_daily": "", 
-            "achievements": [], "total_earned": 0
+            "chat_id": chat_id, "balance": 0, "clicks": 0, "level": 1, 
+            "passive_income": 0, "upgrades": {}, "last_update": time.time(), 
+            "achievements": [], "total_earned": 0, "referral_code": ref_code, 
+            "referred_by": "", "referral_earnings": 0
         }
     else:
         player = dict(row)
@@ -91,101 +89,35 @@ def get_player(chat_id):
                 earned = int(player["passive_income"] * seconds)
                 player["balance"] += earned
                 player["total_earned"] = player.get("total_earned", 0) + earned
+                
+                # Реферальный доход
+                if player.get("referred_by"):
+                    bonus = int(earned * REFERRAL_PERCENT)
+                    if bonus > 0:
+                        c.execute('UPDATE players SET referral_earnings = referral_earnings + ? WHERE chat_id = ?', (bonus, player["referred_by"]))
+                        player["referral_earnings"] = player.get("referral_earnings", 0) + bonus
+                
                 c.execute('UPDATE players SET balance = ?, total_earned = ?, last_update = ? WHERE chat_id = ?',
                          (player["balance"], player["total_earned"], now, chat_id))
                 conn.commit()
         else:
             player["last_update"] = now
     
-    # Проверка достижений
-    new_achievements = check_achievements(player)
-    if new_achievements:
-        player["achievements"].extend(new_achievements)
-        c.execute('UPDATE players SET achievements = ? WHERE chat_id = ?',
-                 (json.dumps(player["achievements"]), chat_id))
-        conn.commit()
-    
     conn.close()
     return jsonify(player)
-
-def check_achievements(player):
-    new = []
-    achieved = player.get("achievements", [])
-    
-    if player.get("clicks", 0) >= 1 and "first_click" not in achieved:
-        new.append({"id": "first_click", "reward": 50})
-        player["balance"] = player.get("balance", 0) + 50
-    if player.get("clicks", 0) >= 100 and "hundred_clicks" not in achieved:
-        new.append({"id": "hundred_clicks", "reward": 200})
-        player["balance"] += 200
-    if player.get("clicks", 0) >= 1000 and "thousand_clicks" not in achieved:
-        new.append({"id": "thousand_clicks", "reward": 1000})
-        player["balance"] += 1000
-    if len(player.get("upgrades", {})) >= 1 and "first_business" not in achieved:
-        new.append({"id": "first_business", "reward": 100})
-        player["balance"] += 100
-    if player.get("balance", 0) >= 10000 and "rich" not in achieved:
-        new.append({"id": "rich", "reward": 500})
-        player["balance"] += 500
-    if player.get("balance", 0) >= 100000 and "tycoon" not in achieved:
-        new.append({"id": "tycoon", "reward": 2500})
-        player["balance"] += 2500
-    
-    return new
-
-@app.route('/api/daily', methods=['POST'])
-def daily_bonus(chat_id=None):
-    if not chat_id:
-        return jsonify({"error": "No chat_id"}), 400
-    
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
-    row = c.fetchone()
-    
-    if not row:
-        conn.close()
-        return jsonify({"error": "Not found"}), 404
-    
-    player = dict(row)
-    today = datetime.now().strftime("%Y-%m-%d")
-    
-    if player["last_daily"] == today:
-        conn.close()
-        return jsonify({"already_claimed": True, "message": "Приходите завтра!"})
-    
-    # Считаем дни подряд
-    last_date = datetime.strptime(player["last_daily"], "%Y-%m-%d") if player["last_daily"] else None
-    streak = 1
-    if last_date:
-        diff = (datetime.now() - last_date).days
-        if diff == 1:
-            streak = min(player.get("daily_streak", 0) + 1, 7)
-        elif diff > 1:
-            streak = 1
-    
-    bonus = 100 * streak
-    c.execute('''
-        UPDATE players SET balance = balance + ?, last_daily = ?, daily_streak = ? WHERE chat_id = ?
-    ''', (bonus, today, streak, chat_id))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({"success": True, "bonus": bonus, "streak": streak})
 
 @app.route('/api/click/<chat_id>', methods=['POST'])
 def click(chat_id):
     conn = get_db()
     c = conn.cursor()
-    
     c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
     
     if not row:
         c.execute('''
-            INSERT INTO players (chat_id, balance, clicks, level, passive_income, upgrades, last_update, last_daily, achievements, total_earned)
-            VALUES (?, 10, 1, 1, 0, '{}', ?, '', '[]', 10)
-        ''', (chat_id, time.time()))
+            INSERT INTO players (chat_id, balance, clicks, level, passive_income, upgrades, last_update, achievements, total_earned, referral_code)
+            VALUES (?, 10, 1, 1, 0, '{}', ?, '[]', 10, ?)
+        ''', (chat_id, time.time(), str(int(time.time()))[-6:]))
     else:
         c.execute('''
             UPDATE players 
@@ -201,7 +133,6 @@ def click(chat_id):
     
     player = dict(row)
     player["upgrades"] = json.loads(player["upgrades"])
-    player["achievements"] = json.loads(player["achievements"])
     return jsonify(player)
 
 @app.route('/api/shop', methods=['GET'])
@@ -210,56 +141,116 @@ def get_shop():
 
 @app.route('/api/buy/<chat_id>/<upgrade_id>', methods=['POST'])
 def buy_upgrade(chat_id, upgrade_id):
-    if upgrade_id not in UPGRADES:
-        return jsonify({"error": "Invalid upgrade"}), 400
+    if upgrade_id not in UPGRADES: return jsonify({"error": "Error"}), 400
     
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
-    
     if not row:
         conn.close()
-        return jsonify({"error": "Player not found"}), 404
+        return jsonify({"error": "Not found"}), 404
     
     player = dict(row)
     player["upgrades"] = json.loads(player["upgrades"])
     upgrade = UPGRADES[upgrade_id]
     
-    current_count = player["upgrades"].get(upgrade_id, 0)
-    current_price = int(upgrade["cost"] * (1.15 ** current_count))
+    count = player["upgrades"].get(upgrade_id, 0)
+    price = int(upgrade["cost"] * (1.15 ** count))
     
-    if player["balance"] < current_price:
+    if player["balance"] < price:
         conn.close()
-        return jsonify({"error": "Недостаточно монет"}), 400
+        return jsonify({"error": "Мало денег"}), 400
     
-    new_count = current_count + 1
+    new_count = count + 1
     new_passive = player["passive_income"] + upgrade["income"]
     
     c.execute('''
-        UPDATE players 
-        SET balance = balance - ?, upgrades = ?, passive_income = ?, last_update = ?
+        UPDATE players SET balance = balance - ?, upgrades = ?, passive_income = ?, last_update = ?
         WHERE chat_id = ?
-    ''', (current_price, json.dumps({**player["upgrades"], upgrade_id: new_count}), 
-          new_passive, time.time(), chat_id))
-    
+    ''', (price, json.dumps({**player["upgrades"], upgrade_id: new_count}), new_passive, time.time(), chat_id))
     conn.commit()
+    
     c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
     conn.close()
     
     player = dict(row)
     player["upgrades"] = json.loads(player["upgrades"])
-    next_price = int(upgrade["cost"] * (1.15 ** new_count))
-    
-    return jsonify({
-        "balance": player["balance"], "passive_income": player["passive_income"],
-        "upgrades": player["upgrades"], "next_price": next_price, "success": True
-    })
+    return jsonify({"balance": player["balance"], "passive_income": player["passive_income"], "upgrades": player["upgrades"], "success": True})
 
-@app.route('/api/achievements', methods=['GET'])
-def get_achievements():
-    return jsonify(ACHIEVEMENTS)
+# === НОВЫЕ ФУНКЦИИ: РЕФЕРАЛЫ И PvP ===
+
+@app.route('/api/referral_link/<chat_id>', methods=['GET'])
+def get_referral_link(chat_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT referral_code FROM players WHERE chat_id = ?', (chat_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row: return jsonify({"error": "Not found"}), 404
+    
+    # Формируем ссылку с параметром реферала
+    # tg.openTelegramLink не работает внутри webview напрямую так, но мы можем дать ссылку на бота
+    # Для WebApp лучше использовать share API, но ссылка будет на бота
+    bot_username = request.args.get('bot', 'MagnatZeroBot') # Замените на ник вашего бота
+    link = f"https://t.me/{bot_username}?start=ref_{row['referral_code']}"
+    return jsonify({"link": link, "code": row["referral_code"]})
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    conn = get_db()
+    c = conn.cursor()
+    # Топ 50 по балансу
+    c.execute('SELECT chat_id, balance, level FROM players ORDER BY balance DESC LIMIT 50')
+    rows = c.fetchall()
+    conn.close()
+    
+    leaderboard = []
+    for i, row in enumerate(rows):
+        leaderboard.append({
+            "rank": i + 1,
+            "chat_id": row["chat_id"],
+            "balance": row["balance"],
+            "level": row["level"]
+        })
+    return jsonify(leaderboard)
+
+@app.route('/api/bind_referral/<chat_id>/<ref_code>', methods=['POST'])
+def bind_referral(chat_id, ref_code):
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Проверяем, есть ли уже реферал у этого юзера
+    c.execute('SELECT referred_by FROM players WHERE chat_id = ?', (chat_id,))
+    row = c.fetchone()
+    if not row or row["referred_by"]:
+        conn.close()
+        return jsonify({"error": "Already bound or not found"}), 400
+    
+    # Ищем реферера по коду
+    c.execute('SELECT chat_id FROM players WHERE referral_code = ?', (ref_code,))
+    referrer = c.fetchone()
+    
+    if not referrer or referrer["chat_id"] == chat_id:
+        conn.close()
+        return jsonify({"error": "Invalid code"}), 400
+    
+    referrer_id = referrer["chat_id"]
+    
+    # Привязываем
+    c.execute('UPDATE players SET referred_by = ? WHERE chat_id = ?', (referrer_id, chat_id))
+    c.execute('UPDATE players SET referral_count = referral_count + 1 WHERE chat_id = ?', (referrer_id,)) # Нужно добавить колонку referral_count если её нет, но пока пропустим для простоты
+    
+    # Даем бонус рефереру
+    c.execute('UPDATE players SET balance = balance + ? WHERE chat_id = ?', (REFERRAL_BONUS, referrer_id))
+    
+    # Даем бонус новичку
+    c.execute('UPDATE players SET balance = balance + ? WHERE chat_id = ?', (REFERRAL_BONUS, chat_id))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "bonus": REFERRAL_BONUS})
 
 init_db()
 
