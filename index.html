@@ -2,18 +2,16 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Корпорация с нуля</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #ffffff;
+            color: #fff;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
             padding: 16px;
         }
         .header { text-align: center; padding: 12px 0; }
@@ -45,17 +43,16 @@
             font-weight: 600;
             background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
             color: white;
-            cursor: pointer;
             margin: 8px 0;
-            transition: transform 0.1s;
         }
-        .main-btn:active { transform: scale(0.98); }
-        .main-btn.loading { opacity: 0.7; pointer-events: none; }
+        .daily-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
         
-        .shop-section { margin-top: 24px; }
-        .shop-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; padding-left: 4px; }
+        .shop-section, .achievements-section { margin-top: 24px; }
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
         
-        .upgrade-card {
+        .upgrade-card, .achievement-card {
             background: rgba(255,255,255,0.08);
             border-radius: 14px;
             padding: 14px;
@@ -64,14 +61,13 @@
             justify-content: space-between;
             align-items: center;
         }
-        .upgrade-info { flex: 1; }
-        .upgrade-name { font-weight: 600; font-size: 15px; }
-        .upgrade-desc { font-size: 12px; color: #a0a0b0; margin-top: 2px; }
+        .achievement-card.locked { opacity: 0.5; }
+        .upgrade-info, .achievement-info { flex: 1; }
+        .upgrade-name, .achievement-name { font-weight: 600; font-size: 15px; }
+        .upgrade-desc, .achievement-desc { font-size: 12px; color: #a0a0b0; margin-top: 2px; }
         .upgrade-owned { font-size: 11px; color: #66d9a8; margin-top: 4px; }
         
-        .upgrade-action { text-align: right; }
-        .upgrade-price { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-        .buy-btn {
+        .buy-btn, .claim-btn {
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             border: none;
             padding: 10px 16px;
@@ -79,10 +75,23 @@
             color: white;
             font-size: 13px;
             font-weight: 600;
-            cursor: pointer;
         }
-        .buy-btn:disabled { background: #555; opacity: 0.6; }
-        .buy-btn.loading { opacity: 0.7; }
+        .buy-btn:disabled { background: #555; }
+        
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+        }
+        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
     </style>
 </head>
 <body>
@@ -113,10 +122,21 @@
     </div>
     
     <button class="main-btn" id="workBtn" onclick="doWork()">💼 Работать (+10$)</button>
+    <button class="main-btn daily-btn" id="dailyBtn" onclick="claimDaily()">🎁 Ежедневный бонус</button>
     
-    <div class="shop-section">
-        <div class="shop-title">🛒 Магазин бизнеса</div>
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('shop')">🛒 Магазин</button>
+        <button class="tab" onclick="switchTab('achievements')">🏆 Достижения</button>
+    </div>
+    
+    <div id="shop-tab" class="tab-content active">
+        <div class="section-title">Бизнесы</div>
         <div id="shop-list"></div>
+    </div>
+    
+    <div id="achievements-tab" class="tab-content">
+        <div class="section-title">Достижения</div>
+        <div id="achievements-list"></div>
     </div>
 
     <script>
@@ -124,29 +144,45 @@
         tg.expand(); tg.ready();
         const userId = tg.initDataUnsafe?.user?.id || 'test';
         let playerData = {};
+        let achievements = [];
         
-        async function api(path, method='GET', body=null) {
-            const opts = { method, headers: {'Content-Type': 'application/json'} };
-            if (body) opts.body = JSON.stringify(body);
-            const res = await fetch(`/api${path}`, opts);
+        async function api(path, method='GET') {
+            const res = await fetch(`/api${path}`, { method });
             return res.json();
         }
         
         async function loadPlayer() {
             playerData = await api(`/player/${userId}`);
             updateUI();
+            loadShop();
+            loadAchievements();
         }
         
         async function doWork() {
             const btn = document.getElementById('workBtn');
-            if (btn.classList.contains('loading')) return;
-            btn.classList.add('loading');
+            if (btn.disabled) return;
+            btn.disabled = true;
             try {
                 playerData = await api(`/click/${userId}`, 'POST');
                 updateUI();
+                loadShop();
                 tg.HapticFeedback.impactOccurred('medium');
             } catch(e) { tg.showAlert('Ошибка'); }
-            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+        
+        async function claimDaily() {
+            try {
+                const res = await fetch(`/api/daily`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    tg.showAlert(`🎁 Бонус: ${data.bonus}$ (серия: ${data.streak} дня)`);
+                    playerData = await api(`/player/${userId}`);
+                    updateUI();
+                } else if (data.already_claimed) {
+                    tg.showAlert(data.message);
+                }
+            } catch(e) { tg.showAlert('Ошибка'); }
         }
         
         async function loadShop() {
@@ -161,32 +197,50 @@
                         <div class="upgrade-info">
                             <div class="upgrade-name">${data.icon} ${data.name}</div>
                             <div class="upgrade-desc">+${data.income}$/сек</div>
-                            ${owned > 0 ? `<div class="upgrade-owned">Владеете: ${owned} шт.</div>` : ''}
+                            ${owned > 0 ? `<div class="upgrade-owned">Владеете: ${owned}</div>` : ''}
                         </div>
-                        <div class="upgrade-action">
-                            <div class="upgrade-price">${price}$</div>
+                        <div>
+                            <div style="font-size:14px;font-weight:600;margin-bottom:6px">${price}$</div>
                             <button class="buy-btn" onclick="buyUpgrade('${id}', ${price})" ${playerData.balance < price ? 'disabled' : ''}>Купить</button>
                         </div>
                     </div>`;
             }
-            container.innerHTML = html || '<p style="color:#888;font-size:13px;padding:10px">Загрузка...</p>';
+            container.innerHTML = html;
         }
         
         async function buyUpgrade(id, price) {
             if (playerData.balance < price) { tg.showAlert('Недостаточно монет'); return; }
-            const btn = event.target;
-            btn.classList.add('loading'); btn.disabled = true;
             try {
-                const res = await api(`/buy/${userId}/${id}`, 'POST');
-                if (res.error) { tg.showAlert(res.error); }
-                else { 
-                    playerData = {...playerData, ...res}; 
-                    updateUI(); 
-                    loadShop(); 
+                const res = await fetch(`/api/buy/${userId}/${id}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.error) tg.showAlert(data.error);
+                else {
+                    playerData = {...playerData, ...data};
+                    updateUI();
+                    loadShop();
                     tg.HapticFeedback.notificationOccurred('success');
                 }
-            } catch(e) { tg.showAlert('Ошибка покупки'); }
-            btn.classList.remove('loading'); btn.disabled = false;
+            } catch(e) { tg.showAlert('Ошибка'); }
+        }
+        
+        async function loadAchievements() {
+            achievements = await api('/achievements');
+            const container = document.getElementById('achievements-list');
+            const achieved = playerData.achievements?.map(a => a.id) || [];
+            let html = '';
+            for (const ach of achievements) {
+                const unlocked = achieved.includes(ach.id);
+                html += `
+                    <div class="achievement-card ${unlocked ? '' : 'locked'}">
+                        <div class="achievement-info">
+                            <div class="achievement-name">${ach.icon} ${ach.name}</div>
+                            <div class="achievement-desc">${ach.desc}</div>
+                            <div style="font-size:11px;color:#66d9a8;margin-top:4px">Награда: ${ach.reward}$</div>
+                        </div>
+                        <div style="font-size:24px">${unlocked ? '✅' : '🔒'}</div>
+                    </div>`;
+            }
+            container.innerHTML = html;
         }
         
         function updateUI() {
@@ -197,7 +251,13 @@
             document.getElementById('income').textContent = playerData.passive_income || 0;
         }
         
-        // Авто-обновление баланса (визуально)
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab + '-tab').classList.add('active');
+        }
+        
         setInterval(() => {
             if (playerData.passive_income > 0) {
                 playerData.balance += playerData.passive_income;
@@ -206,7 +266,6 @@
         }, 1000);
         
         loadPlayer();
-        loadShop();
     </script>
 </body>
 </html>
