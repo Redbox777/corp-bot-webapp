@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Корпорация с нуля</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 30px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+        .subtitle { font-size: 14px; color: #a0a0b0; margin-bottom: 24px; }
+        .balance-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .balance-label { font-size: 12px; opacity: 0.8; }
+        .balance-value { font-size: 42px; font-weight: 800; margin-top: 4px; }
+        .stats { display: flex; justify-content: space-between; margin-bottom: 24px; }
+        .stat-item { text-align: center; }
+        .stat-val { font-size: 18px; font-weight: 600; }
+        .stat-label { font-size: 11px; color: #a0a0b0; margin-top: 4px; }
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+        }
+        .loading { opacity: 0.6; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="title">💼 Корпорация</div>
+        <div class="subtitle">Строй империю с нуля</div>
+        
+        <div class="balance-box">
+            <div class="balance-label">Текущий баланс</div>
+            <div class="balance-value" id="balance">0$</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-val" id="level">1</div>
+                <div class="stat-label">Уровень</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="clicks">0</div>
+                <div class="stat-label">Действий</div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" id="workBtn" onclick="doWork()">💼 Работать (+10$)</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        const userId = tg.initDataUnsafe?.user?.id || 'test_user';
+        const btn = document.getElementById('workBtn');
+
+        async function loadData() {
+            try {
+                const res = await fetch(`/api/player/${userId}`);
+                const data = await res.json();
+                updateUI(data);
+            } catch (e) { console.error(e); }
+        }
+
+        async function doWork() {
+            if (btn.classList.contains('loading')) return;
+            btn.classList.add('loading');
+            try {
+                const res = await fetch(`/api/click/${userId}`, { method: 'POST' });
+                const data = await res.json();
+                updateUI(data);
+                tg.HapticFeedback.impactOccurred('medium');
+            } catch (e) {
+                tg.showAlert('Ошибка соединения');
+            } finally {
+                btn.classList.remove('loading');
+            }
+        }
+
+        function updateUI(data) {
+            document.getElementById('balance').textContent = data.balance + '$';
+            document.getElementById('level').textContent = data.level;
+            document.getElementById('clicks').textContent = data.clicks;
+        }
+        loadData();
+    </script>
+</body>
+</html>
