@@ -231,10 +231,12 @@ def claim_quest(chat_id, quest_id):
 
 @app.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
-    conn = get_db(); c = conn.cursor()
+    conn = get_db()
+    c = conn.cursor()
     c.execute('SELECT chat_id, balance, level FROM players ORDER BY balance DESC LIMIT 50')
+    rows = c.fetchall()
     conn.close()
-    return jsonify([{"rank":i+1, "chat_id":r["chat_id"], "balance":r["balance"], "level":r["level"]} for i,r in enumerate(c.fetchall())])
+    return jsonify([{"rank":i+1, "chat_id":r["chat_id"], "balance":r["balance"], "level":r["level"]} for i,r in enumerate(rows)])
 
 @app.route('/api/referral_link/<chat_id>', methods=['GET'])
 def get_referral_link(chat_id):
