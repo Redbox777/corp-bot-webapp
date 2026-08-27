@@ -12,6 +12,7 @@ CORS(app)
 def init_db():
     conn = sqlite3.connect('players.db')
     c = conn.cursor()
+    # Создаем таблицу, если нет
     c.execute('''CREATE TABLE IF NOT EXISTS players (
         chat_id TEXT PRIMARY KEY, balance INTEGER DEFAULT 0, clicks INTEGER DEFAULT 0,
         level INTEGER DEFAULT 1, passive_income INTEGER DEFAULT 0, click_power INTEGER DEFAULT 10,
@@ -20,10 +21,18 @@ def init_db():
         referral_earnings INTEGER DEFAULT 0, quests_data TEXT DEFAULT '{}'
     )''')
     
-    # Безопасное добавление колонок (игнорирует ошибку если уже есть)
-    for col, default in [("quests_data", "'{}'")]:
-        try: c.execute(f"ALTER TABLE players ADD COLUMN {col} TEXT DEFAULT {default}")
-        except: pass
+    # Безопасно добавляем новые колонки (если их нет)
+    cols = [
+        ("prestige_points", "0"),
+        ("prestige_mult", "1.0"),
+        ("total_prestiges", "0")
+    ]
+    for col, default in cols:
+        try:
+            c.execute(f"ALTER TABLE players ADD COLUMN {col} INTEGER DEFAULT {default}")
+        except:
+            pass
+            
     conn.commit()
     conn.close()
 
@@ -32,20 +41,22 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+# Улучшения (Добавил мощное здание для поздней игры)
 UPGRADES = {
-    "shawarma": {"name": "Ларёк", "cost": 100, "income": 2, "icon": "", "type": "passive"},
+    "shawarma": {"name": "Ларёк", "cost": 100, "income": 2, "icon": "🌯", "type": "passive"},
     "coffee": {"name": "Кофе", "cost": 500, "income": 10, "icon": "☕", "type": "passive"},
-    "office": {"name": "Офис", "cost": 2000, "income": 50, "icon": "", "type": "passive"},
-    "factory": {"name": "Завод", "cost": 10000, "income": 250, "icon": "", "type": "passive"},
-    "mouse": {"name": "Золотая мышь", "cost": 200, "power": 5, "icon": "🖱️", "type": "click"},
-    "ai_bot": {"name": "AI-Бот", "cost": 1000, "power": 25, "icon": "", "type": "click"}
+    "office": {"name": "Офис", "cost": 2000, "income": 50, "icon": "🏢", "type": "passive"},
+    "factory": {"name": "Завод", "cost": 10000, "income": 250, "icon": "🏭", "type": "passive"},
+    "bank": {"name": "Банк", "cost": 50000, "income": 1500, "icon": "🏦", "type": "passive"},
+    "mouse": {"name": "Золотая мышь", "cost": 200, "power": 5, "icon": "️", "type": "click"},
+    "ai_bot": {"name": "AI-Бот", "cost": 1000, "power": 25, "icon": "🤖", "type": "click"},
+    "quantum": {"name": "Квантовый ПК", "cost": 100000, "power": 500, "icon": "💻", "type": "click"}
 }
 
 QUESTS = [
-    {"id": "click_50", "name": "Трудяга", "desc": "Сделай 50 кликов", "target": 50, "type": "clicks", "reward": 150, "daily": True},
-    {"id": "earn_500", "name": "Бизнесмен", "desc": "Заработай 500$", "target": 500, "type": "total_earned", "reward": 200, "daily": True},
-    {"id": "first_buy", "name": "Инвестор", "desc": "Купи любое улучшение", "target": 1, "type": "upgrades_count", "reward": 300, "daily": False},
-    {"id": "level_5", "name": "Менеджер", "desc": "Достигни 5 уровня", "target": 5, "type": "level", "reward": 500, "daily": False}
+    {"id": "click_100", "name": "Кликер", "desc": "Сделай 100 кликов", "target": 100, "type": "clicks", "reward": 200, "daily": True},
+    {"id": "earn_1000", "name": "Магнат", "desc": "Заработай 1000$", "target": 1000, "type": "total_earned", "reward": 500, "daily": True},
+    {"id": "rebirth_1", "name": "Новая жизнь", "desc": "Переродись 1 раз", "target": 1, "type": "prestiges", "reward": 1000, "daily": False}
 ]
 
 @app.route('/')
@@ -61,20 +72,17 @@ def update_quests(player, conn):
         if qid not in q_data:
             q_data[qid] = {"progress": 0, "claimed": False, "last_date": today}
         
-        # Сброс дневных квестов
         if q["daily"] and q_data[qid]["last_date"] != today:
             q_data[qid] = {"progress": 0, "claimed": False, "last_date": today}
         
-        # Расчет прогресса
         val = 0
         if q["type"] == "clicks": val = player.get("clicks", 0)
         elif q["type"] == "total_earned": val = player.get("total_earned", 0)
         elif q["type"] == "upgrades_count": val = sum(player.get("upgrades", {}).values())
         elif q["type"] == "level": val = player.get("level", 1)
+        elif q["type"] == "prestiges": val = player.get("total_prestiges", 0)
         
         q_data[qid]["progress"] = min(val, q["target"])
-        if q_data[qid]["progress"] >= q["target"] and not q_data[qid]["claimed"]:
-            pass # Готов к получению
             
     c.execute("UPDATE players SET quests_data = ? WHERE chat_id = ?", (json.dumps(q_data), player["chat_id"]))
     conn.commit()
@@ -89,25 +97,32 @@ def get_player(chat_id):
     
     if not row:
         ref_code = str(int(time.time()))[-6:]
-        c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, last_update, achievements, total_earned, referral_code, quests_data)
-            VALUES (?, 0, 0, 1, 0, 10, '{}', ?, '[]', 0, ?, '{}')''', (chat_id, time.time(), ref_code))
+        c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult)
+            VALUES (?, 0, 0, 1, 0, 10, '{}', ?, '[]', 0, ?, '{}', 0, 1.0)''', (chat_id, time.time(), ref_code))
         conn.commit()
-        player = {"chat_id": chat_id, "balance": 0, "clicks": 0, "level": 1, "passive_income": 0, "click_power": 10, "upgrades": {}, "last_update": time.time(), "achievements": [], "total_earned": 0, "referral_code": ref_code, "referred_by": "", "quests_data": {}}
+        player = {"chat_id": chat_id, "balance": 0, "clicks": 0, "level": 1, "passive_income": 0, "click_power": 10, "upgrades": {}, "last_update": time.time(), "achievements": [], "total_earned": 0, "referral_code": ref_code, "referred_by": "", "prestige_points": 0, "prestige_mult": 1.0, "total_prestiges": 0, "quests_data": {}}
     else:
         player = dict(row)
         player.update({"upgrades": json.loads(player["upgrades"]), "achievements": json.loads(player["achievements"]), "quests_data": json.loads(player["quests_data"])})
         
         now = time.time()
+        # Расчет пассивного дохода с учетом множителя престижа
+        mult = player.get("prestige_mult", 1.0)
         if player["last_update"] and player["passive_income"] > 0:
             sec = now - player["last_update"]
             if sec > 1:
-                earned = int(player["passive_income"] * sec)
-                player["balance"] += earned
-                player["total_earned"] += earned
+                base_earned = int(player["passive_income"] * sec)
+                final_earned = int(base_earned * mult)
+                
+                player["balance"] += final_earned
+                player["total_earned"] += final_earned
+                
                 if player.get("referred_by"):
-                    bonus = int(earned * 0.01)
+                    bonus = int(final_earned * 0.01)
                     if bonus > 0: c.execute('UPDATE players SET balance = balance + ? WHERE chat_id = ?', (bonus, player["referred_by"]))
-                c.execute('UPDATE players SET balance = ?, total_earned = ?, last_update = ? WHERE chat_id = ?', (player["balance"], player["total_earned"], now, chat_id))
+                
+                c.execute('UPDATE players SET balance = ?, total_earned = ?, last_update = ? WHERE chat_id = ?', 
+                         (player["balance"], player["total_earned"], now, chat_id))
         player["last_update"] = now
         
     q_data = update_quests(player, conn)
@@ -119,22 +134,85 @@ def get_player(chat_id):
 def click(chat_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT click_power, balance, clicks, upgrades, total_earned FROM players WHERE chat_id = ?', (chat_id,))
+    c.execute('SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
+    
     if not row:
-        c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, last_update, achievements, total_earned, referral_code, quests_data) VALUES (?, 10, 1, 1, 0, 10, '{}', ?, '[]', 10, ?, '{}')''', (chat_id, time.time(), str(int(time.time()))[-6:]))
+        # Создаем нового
+        c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult) VALUES (?, 10, 1, 1, 0, 10, '{}', ?, '[]', 10, ?, '{}', 0, 1.0)''', (chat_id, time.time(), str(int(time.time()))[-6:]))
         conn.commit()
-        res = {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10}
+        res = {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
     else:
-        pwr = row["click_power"] or 10
-        nb = row["balance"] + pwr
+        pwr = (row["click_power"] or 10)
+        mult = row.get("prestige_mult", 1.0)
+        final_pwr = int(pwr * mult) # Клик тоже умножается
+        
+        nb = row["balance"] + final_pwr
         nc = row["clicks"] + 1
-        nt = row["total_earned"] + pwr
+        nt = row["total_earned"] + final_pwr
+        
         c.execute('UPDATE players SET balance=?, clicks=?, total_earned=?, last_update=? WHERE chat_id=?', (nb, nc, nt, time.time(), chat_id))
         conn.commit()
-        res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(row["upgrades"]), "total_earned": nt}
+        res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(row["upgrades"]), "total_earned": nt, "prestige_mult": mult}
+    
     conn.close()
     return jsonify(res)
+
+@app.route('/api/rebirth/<chat_id>', methods=['POST'])
+def rebirth(chat_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT balance, total_earned, level, prestige_points, prestige_mult, total_prestiges FROM players WHERE chat_id = ?', (chat_id,))
+    row = c.fetchone()
+    
+    if not row:
+        conn.close()
+        return jsonify({"error": "Player not found"}), 404
+    
+    # Условие перерождения: Уровень 10 ИЛИ заработано больше 50,000 всего
+    # Для теста можно снизить порог
+    if row["level"] < 5 and row["total_earned"] < 5000:
+        conn.close()
+        return jsonify({"error": f"Нужен 5 уровень или 5000$ всего"}), 400
+        
+    # Расчет кристаллов: 1 кристалл за каждые 5000$ заработанного (минус уже имеющиеся)
+    # Формула: (ВсегоЗаработано / 5000) - ТекущиеКристаллы
+    gems_to_add = max(0, (row["total_earned"] // 5000) - row["prestige_points"])
+    
+    if gems_to_add == 0:
+        gems_to_add = 1 # Минимум 1 кристалл за перерождение
+        
+    new_total_gems = row["prestige_points"] + gems_to_add
+    new_mult = 1.0 + (new_total_gems * 0.05) # +5% за каждый кристалл
+    new_prestiges = (row["total_prestiges"] or 0) + 1
+    
+    # СБРОС ПРОГРЕССА (Reset)
+    c.execute('''
+        UPDATE players SET 
+            balance = 0, 
+            clicks = 0, 
+            level = 1, 
+            passive_income = 0, 
+            click_power = 10, 
+            upgrades = '{}',
+            total_earned = 0,
+            last_update = ?,
+            prestige_points = ?,
+            prestige_mult = ?,
+            total_prestiges = ?
+        WHERE chat_id = ?
+    ''', (time.time(), new_total_gems, new_mult, new_prestiges, chat_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        "success": True, 
+        "gems_added": gems_to_add, 
+        "total_gems": new_total_gems, 
+        "multiplier": new_mult,
+        "message": f"Перерождение успешно! +{gems_to_add} 💎"
+    })
 
 @app.route('/api/shop', methods=['GET'])
 def get_shop(): return jsonify(UPGRADES)
@@ -146,34 +224,37 @@ def buy_upgrade(chat_id, upgrade_id):
     c.execute('SELECT balance, upgrades, click_power, passive_income FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
     if not row: conn.close(); return jsonify({"error": "Not found"}), 404
+    
     p = dict(row); p["upgrades"] = json.loads(p["upgrades"])
     u = UPGRADES[upgrade_id]
     cnt = p["upgrades"].get(upgrade_id, 0)
     price = int(u["cost"] * (1.15 ** cnt))
+    
     if p["balance"] < price: conn.close(); return jsonify({"error": "Мало денег"}), 400
     
     nb = p["balance"] - price
     nu = {**p["upgrades"], upgrade_id: cnt+1}
     npwr = p["click_power"] or 10; npass = p["passive_income"] or 0
+    
     if u["type"] == "click": npwr += u.get("power", 0)
     else: npass += u.get("income", 0)
     
-    c.execute('UPDATE players SET balance=?, upgrades=?, click_power=?, passive_income=?, last_update=? WHERE chat_id=?', (nb, json.dumps(nu), npwr, npass, time.time(), chat_id))
+    c.execute('UPDATE players SET balance=?, upgrades=?, click_power=?, passive_income=?, last_update=? WHERE chat_id=?', 
+              (nb, json.dumps(nu), npwr, npass, time.time(), chat_id))
     conn.commit(); conn.close()
     return jsonify({"balance": nb, "click_power": npwr, "passive_income": npass, "upgrades": nu, "success": True})
 
 @app.route('/api/quests/<chat_id>', methods=['GET'])
 def get_quests(chat_id):
     conn = get_db(); c = conn.cursor()
-    c.execute('SELECT quests_data, chat_id FROM players WHERE chat_id = ?', (chat_id,))
-    row = c.fetchone()
-    conn.close()
+    c.execute('SELECT quests_data FROM players WHERE chat_id = ?', (chat_id,))
+    row = c.fetchone(); conn.close()
     if not row: return jsonify([])
     q_data = json.loads(row["quests_data"])
     res = []
     for q in QUESTS:
         status = q_data.get(q["id"], {"progress":0, "claimed":False})
-        res.append({**q, "progress": status["progress"], "claimed": status["claimed"], "chat_id": row["chat_id"]})
+        res.append({**q, "progress": status["progress"], "claimed": status["claimed"]})
     return jsonify(res)
 
 @app.route('/api/claim_quest/<chat_id>/<quest_id>', methods=['POST'])

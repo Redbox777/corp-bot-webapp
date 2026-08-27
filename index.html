@@ -6,14 +6,17 @@
     <title>Corp Tycoon</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --green: #10b981; --gold: #f59e0b; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --green: #10b981; --gold: #f59e0b; --gem: #8b5cf6; }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; }
         
         .header { text-align: center; margin-bottom: 12px; }
-        .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); }
+        .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); position: relative; }
+        .gem-badge { position: absolute; top: -10px; right: -10px; background: var(--gem); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(139,92,246,0.5); display: flex; align-items: center; gap: 4px; }
         .bal-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; }
         .bal-val { font-size: 38px; font-weight: 900; margin: 6px 0; }
+        .mult-text { font-size: 12px; color: var(--gem); font-weight: bold; margin-top: 4px; }
+        
         .lvl-bar { height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-top: 12px; overflow: hidden; }
         .lvl-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.3s; }
         .lvl-text { font-size: 11px; margin-top: 4px; opacity: 0.7; }
@@ -24,13 +27,13 @@
         .click-icon { font-size: 40px; }
         .click-pwr { font-size: 14px; font-weight: 700; margin-top: 4px; }
         
-        .tabs { display: flex; background: var(--card); border-radius: 14px; padding: 4px; margin: 16px 0; }
-        .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; border-radius: 10px; font-weight: 600; font-size: 14px; }
+        .tabs { display: flex; background: var(--card); border-radius: 14px; padding: 4px; margin: 16px 0; overflow-x: auto; }
+        .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; border-radius: 10px; font-weight: 600; font-size: 13px; white-space: nowrap; }
         .tab.active { background: #334155; color: #fff; }
         
         .list { display: flex; flex-direction: column; gap: 10px; }
         .card { background: var(--card); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: center; }
-        .card-left { display: flex; align-items: center; gap: 12px; }
+        .card-left { display: flex; align-items: center; gap: 12px; flex: 1; }
         .icon { width: 40px; height: 40px; background: #334155; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
         .name { font-weight: 600; font-size: 15px; }
         .desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
@@ -40,32 +43,44 @@
         .btn { border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
         .btn-buy { background: var(--green); color: #000; }
         .btn-claim { background: var(--gold); color: #000; }
+        .btn-rebirth { background: var(--gem); color: #fff; width: 100%; padding: 12px; font-size: 15px; margin-top: 10px; }
         .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-        .btn-ref { width: 100%; padding: 14px; background: linear-gradient(90deg, #ec4899, #f43f5e); color: #fff; border: none; border-radius: 12px; font-weight: 700; margin-bottom: 12px; }
+        
+        .prestige-card { border: 2px solid var(--gem); background: rgba(139,92,246,0.1); }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="balance-box">
+            <div class="gem-badge">💎 <span id="gems">0</span></div>
             <div class="bal-label">Баланс</div>
             <div class="bal-val" id="bal">0$</div>
+            <div class="mult-text">x<span id="mult">1.0</span> Bonus</div>
             <div class="lvl-bar"><div class="lvl-fill" id="lvlFill"></div></div>
-            <div class="lvl-text" id="lvlTxt">Уровень 1 (0/100 кликов)</div>
+            <div class="lvl-text" id="lvlTxt">Уровень 1 (0/100)</div>
         </div>
     </div>
 
     <button class="click-btn" id="cBtn"><div class="click-inner"><div class="click-icon">👆</div><div class="click-pwr" id="pwrTxt">+10$/клик</div></div></button>
 
-    <button class="btn-ref" onclick="shareRef()">👥 Пригласить друга (+500$)</button>
-
     <div class="tabs">
-        <button class="tab active" onclick="tab('upgrades')"> Улучшения</button>
-        <button class="tab" onclick="tab('quests')"> Задания</button>
-        <button class="tab" onclick="tab('top')">🏆 Топ</button>
+        <button class="tab active" onclick="tab('upgrades')">🛒 Магазин</button>
+        <button class="tab" onclick="tab('quests')">📋 Квесты</button>
+        <button class="tab" onclick="tab('rebirth')">💎 Перерождение</button>
+        <button class="tab" onclick="tab('top')"> Топ</button>
     </div>
 
     <div id="upgrades" class="list"></div>
     <div id="quests" class="list" style="display:none"></div>
+    <div id="rebirth" class="list" style="display:none">
+        <div class="card prestige-card" style="flex-direction: column; text-align: center; gap: 12px;">
+            <div style="font-size: 40px;">🌀</div>
+            <div class="name" style="color: var(--gem);">Система Перерождения</div>
+            <div class="desc">Сбросьте прогресс, чтобы получить Кристаллы 💎.<br>Каждый кристалл дает +5% ко всему доходу навсегда!</div>
+            <div style="font-size: 12px; opacity: 0.7;">Требуется: 5 Уровень или 5000$ всего</div>
+            <button class="btn btn-rebirth" id="rebirthBtn" onclick="doRebirth()">ПЕРЕРОДИТЬСЯ</button>
+        </div>
+    </div>
     <div id="top" class="list" style="display:none"></div>
 
     <script>
@@ -81,11 +96,24 @@
 
         function render() {
             document.getElementById('bal').innerText = D.balance + '$';
-            document.getElementById('pwrTxt').innerText = `+${D.click_power||10}$/клик`;
+            document.getElementById('gems').innerText = D.prestige_points || 0;
+            document.getElementById('mult').innerText = (D.prestige_mult || 1.0).toFixed(2);
+            document.getElementById('pwrTxt').innerText = `+${Math.floor((D.click_power||10)*(D.prestige_mult||1))}$/клик`;
+            
             const nextLvl = D.level * 100;
             const prog = Math.min((D.clicks % 100) / 100 * 100, 100);
             document.getElementById('lvlFill').style.width = prog + '%';
-            document.getElementById('lvlTxt').innerText = `Уровень ${D.level} (${D.clicks % 100}/100 кликов)`;
+            document.getElementById('lvlTxt').innerText = `Уровень ${D.level} (${D.clicks % 100}/100)`;
+            
+            const rebBtn = document.getElementById('rebirthBtn');
+            if (D.level >= 5 || D.total_earned >= 5000) {
+                rebBtn.disabled = false;
+                rebBtn.innerText = "ПЕРЕРОДИТЬСЯ (Сброс)";
+            } else {
+                rebBtn.disabled = true;
+                rebBtn.innerText = "Недоступно (Нужен 5 Ур.)";
+            }
+            
             renderShop();
         }
 
@@ -137,7 +165,7 @@
                             <div class="desc">${q.progress}/${q.target}</div>
                         </div>
                     </div>
-                    <button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed?'✅':'🎁 '+q.reward+'$'}</button>
+                    <button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed?'✅':' '+q.reward+'$'}</button>
                 </div>`;
             });
             el.innerHTML = h;
@@ -147,6 +175,19 @@
             const r = await api(`/claim_quest/${uid}/${id}`, 'POST');
             if(r.success) { D.balance = r.balance; tg.showAlert(`Получено ${r.reward}$!`); render(); renderQuests(); }
             else tg.showAlert(r.error);
+        }
+
+        async function doRebirth() {
+            tg.showConfirm("Вы уверены? Весь прогресс (деньги, здания) будет сброшен! Вы получите Кристаллы 💎", (ok) => {
+                if(ok) {
+                    api(`/rebirth/${uid}`, 'POST').then(r => {
+                        if(r.success) {
+                            tg.showAlert(r.message);
+                            load();
+                        } else tg.showAlert(r.error);
+                    });
+                }
+            });
         }
 
         async function renderTop() {
@@ -165,18 +206,14 @@
         function tab(t) {
             document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
             event.target.classList.add('active');
-            ['upgrades','quests','top'].forEach(id=>document.getElementById(id).style.display='none');
+            ['upgrades','quests','rebirth','top'].forEach(id=>document.getElementById(id).style.display='none');
             document.getElementById(t).style.display='block';
             if(t==='quests') renderQuests();
             if(t==='top') renderTop();
         }
 
-        function shareRef() {
-            api(`/referral_link/${uid}?bot=MagnatZeroBot`).then(d=>tg.openTelegramLink(d.link));
-        }
-
         load();
-        setInterval(()=>{ if(D.passive_income>0){D.balance+=D.passive_income; render();} }, 1000);
+        setInterval(()=>{ if(D.passive_income>0){D.balance+=Math.floor(D.passive_income*(D.prestige_mult||1)); render();} }, 1000);
     </script>
 </body>
 </html>
