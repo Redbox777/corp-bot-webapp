@@ -3,181 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Корпорация</title>
+    <title>Corp Tycoon</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root { --bg: #1a1a2e; --card: rgba(255,255,255,0.08); --primary: #667eea; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --green: #10b981; --gold: #f59e0b; }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; overflow-x: hidden; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; }
         
-        .header { text-align: center; margin-bottom: 16px; }
-        .title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+        .header { text-align: center; margin-bottom: 12px; }
+        .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); }
+        .bal-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; }
+        .bal-val { font-size: 38px; font-weight: 900; margin: 6px 0; }
+        .lvl-bar { height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+        .lvl-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.3s; }
+        .lvl-text { font-size: 11px; margin-top: 4px; opacity: 0.7; }
         
-        .balance-card { background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 24px; padding: 24px; text-align: center; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); position: relative; overflow: hidden; }
-        .balance-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
-        .balance-value { font-size: 42px; font-weight: 900; margin: 8px 0; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        .stats-row { display: flex; justify-content: space-around; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
-        .stat-item { text-align: center; }
-        .stat-val { font-size: 16px; font-weight: 700; }
-        .stat-label { font-size: 11px; opacity: 0.6; margin-top: 2px; }
-        
-        .click-area { margin: 20px 0; display: flex; justify-content: center; }
-        .click-btn { 
-            width: 160px; height: 160px; border-radius: 50%; 
-            background: radial-gradient(circle at 30% 30%, #4facfe, #00f2fe); 
-            border: none; box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
-            display: flex; align-items: center; justify-content: center; flex-direction: column;
-            transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer; position: relative; overflow: hidden;
-        }
+        .click-btn { width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle, #60a5fa, #2563eb); border: none; margin: 20px auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(37,99,235,0.5); transition: transform 0.1s; }
         .click-btn:active { transform: scale(0.92); }
-        .click-icon { font-size: 48px; margin-bottom: 4px; }
-        .click-text { font-size: 14px; font-weight: 700; color: #003; }
+        .click-inner { text-align: center; }
+        .click-icon { font-size: 40px; }
+        .click-pwr { font-size: 14px; font-weight: 700; margin-top: 4px; }
         
-        .power-info { text-align: center; margin-top: 12px; font-size: 13px; opacity: 0.7; }
+        .tabs { display: flex; background: var(--card); border-radius: 14px; padding: 4px; margin: 16px 0; }
+        .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; border-radius: 10px; font-weight: 600; font-size: 14px; }
+        .tab.active { background: #334155; color: #fff; }
         
-        .tabs { display: flex; background: var(--card); border-radius: 16px; padding: 4px; margin-bottom: 16px; }
-        .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #fff; border-radius: 12px; font-weight: 600; font-size: 14px; transition: 0.2s; }
-        .tab.active { background: rgba(255,255,255,0.15); }
+        .list { display: flex; flex-direction: column; gap: 10px; }
+        .card { background: var(--card); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .card-left { display: flex; align-items: center; gap: 12px; }
+        .icon { width: 40px; height: 40px; background: #334155; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .name { font-weight: 600; font-size: 15px; }
+        .desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+        .prog-wrap { width: 100%; height: 4px; background: #334155; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .prog-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
         
-        .list-item { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .item-left { display: flex; align-items: center; gap: 12px; }
-        .item-icon { font-size: 24px; width: 40px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-        .item-name { font-weight: 600; font-size: 15px; }
-        .item-desc { font-size: 11px; opacity: 0.6; margin-top: 2px; }
-        .btn-buy { background: #38ef7d; color: #000; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 13px; }
-        .btn-buy:disabled { background: #444; color: #888; }
-        
-        .ref-btn { width: 100%; padding: 14px; background: linear-gradient(90deg, #f093fb, #f5576c); border: none; border-radius: 14px; color: #fff; font-weight: 700; margin-top: 10px; }
+        .btn { border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+        .btn-buy { background: var(--green); color: #000; }
+        .btn-claim { background: var(--gold); color: #000; }
+        .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
+        .btn-ref { width: 100%; padding: 14px; background: linear-gradient(90deg, #ec4899, #f43f5e); color: #fff; border: none; border-radius: 12px; font-weight: 700; margin-bottom: 12px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="title">💼 CORPORATION</div>
-    </div>
-
-    <div class="balance-card">
-        <div class="balance-label">Total Balance</div>
-        <div class="balance-value" id="balance">0$</div>
-        <div class="stats-row">
-            <div class="stat-item">
-                <div class="stat-val" id="level">1</div>
-                <div class="stat-label">LVL</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-val" id="income">+0</div>
-                <div class="stat-label">/SEC</div>
-            </div>
+        <div class="balance-box">
+            <div class="bal-label">Баланс</div>
+            <div class="bal-val" id="bal">0$</div>
+            <div class="lvl-bar"><div class="lvl-fill" id="lvlFill"></div></div>
+            <div class="lvl-text" id="lvlTxt">Уровень 1 (0/100 кликов)</div>
         </div>
     </div>
 
-    <div class="click-area">
-        <button class="click-btn" id="clickBtn">
-            <div class="click-icon">👆</div>
-            <div class="click-text">TAP</div>
-        </button>
-    </div>
-    <div class="power-info" id="powerInfo">Power: +10$ per click</div>
+    <button class="click-btn" id="cBtn"><div class="click-inner"><div class="click-icon">👆</div><div class="click-pwr" id="pwrTxt">+10$/клик</div></div></button>
 
-    <button class="ref-btn" onclick="shareRef()"> Invite Friends (+500$)</button>
+    <button class="btn-ref" onclick="shareRef()">👥 Пригласить друга (+500$)</button>
 
-    <div class="tabs" style="margin-top: 20px;">
-        <button class="tab active" onclick="switchTab('upgrades')">🚀 Upgrades</button>
-        <button class="tab" onclick="switchTab('leaderboard')">🏆 Top</button>
+    <div class="tabs">
+        <button class="tab active" onclick="tab('upgrades')"> Улучшения</button>
+        <button class="tab" onclick="tab('quests')"> Задания</button>
+        <button class="tab" onclick="tab('top')">🏆 Топ</button>
     </div>
 
-    <div id="upgrades-tab"></div>
-    <div id="leaderboard-tab" style="display:none"></div>
+    <div id="upgrades" class="list"></div>
+    <div id="quests" class="list" style="display:none"></div>
+    <div id="top" class="list" style="display:none"></div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand(); tg.ready();
-        const userId = tg.initDataUnsafe?.user?.id || 'test';
-        let data = {};
-
-        async function api(p, m='GET') { return (await fetch(`/api${p}`, {method:m})).json(); }
+        const tg = window.Telegram.WebApp; tg.expand(); tg.ready();
+        const uid = tg.initDataUnsafe?.user?.id || 'test';
+        let D = {};
+        const api = (p, m='GET') => fetch(`/api${p}`, {method:m}).then(r=>r.json());
 
         async function load() {
-            data = await api(`/player/${userId}`);
+            D = await api(`/player/${uid}`);
             render();
         }
 
         function render() {
-            document.getElementById('balance').innerText = data.balance + '$';
-            document.getElementById('level').innerText = data.level;
-            document.getElementById('income').innerText = '+' + (data.passive_income||0);
-            document.getElementById('powerInfo').innerText = `Power: +${data.click_power||10}$ per click`;
+            document.getElementById('bal').innerText = D.balance + '$';
+            document.getElementById('pwrTxt').innerText = `+${D.click_power||10}$/клик`;
+            const nextLvl = D.level * 100;
+            const prog = Math.min((D.clicks % 100) / 100 * 100, 100);
+            document.getElementById('lvlFill').style.width = prog + '%';
+            document.getElementById('lvlTxt').innerText = `Уровень ${D.level} (${D.clicks % 100}/100 кликов)`;
             renderShop();
         }
 
-        document.getElementById('clickBtn').onclick = async () => {
-            const btn = document.getElementById('clickBtn');
-            btn.style.transform = 'scale(0.9)';
-            setTimeout(() => btn.style.transform = 'scale(1)', 100);
-            data = await api(`/click/${userId}`, 'POST');
-            render();
+        document.getElementById('cBtn').onclick = async () => {
+            const b = document.getElementById('cBtn'); b.style.transform='scale(0.9)';
+            setTimeout(()=>b.style.transform='scale(1)', 100);
+            D = await api(`/click/${uid}`, 'POST'); render();
         };
 
         async function renderShop() {
             const shop = await api('/shop');
-            const el = document.getElementById('upgrades-tab');
-            let html = '';
-            for(let [k, v] of Object.entries(shop)) {
-                const count = (data.upgrades||{})[k] || 0;
-                const price = Math.floor(v.cost * Math.pow(1.15, count));
-                const typeLabel = v.type === 'click' ? `+${v.power} click` : `+${v.income} sec`;
-                html += `<div class="list-item">
-                    <div class="item-left">
-                        <div class="item-icon">${v.icon}</div>
-                        <div>
-                            <div class="item-name">${v.name}</div>
-                            <div class="item-desc">${typeLabel} | Owned: ${count}</div>
-                        </div>
+            const el = document.getElementById('upgrades');
+            let h = '';
+            for(let [k,v] of Object.entries(shop)) {
+                const cnt = (D.upgrades||{})[k] || 0;
+                const price = Math.floor(v.cost * Math.pow(1.15, cnt));
+                const type = v.type==='click' ? `+${v.power} клик` : `+${v.income}/сек`;
+                h += `<div class="card">
+                    <div class="card-left">
+                        <div class="icon">${v.icon}</div>
+                        <div><div class="name">${v.name}</div><div class="desc">${type} | Куплено: ${cnt}</div></div>
                     </div>
-                    <button class="btn-buy" onclick="buy('${k}', ${price})" ${data.balance < price ? 'disabled' : ''}>${price}$</button>
+                    <button class="btn btn-buy" onclick="buy('${k}',${price})" ${D.balance<price?'disabled':''}>${price}$</button>
                 </div>`;
             }
-            el.innerHTML = html;
+            el.innerHTML = h;
         }
 
         async function buy(id, price) {
-            if(data.balance < price) return;
-            const res = await api(`/buy/${userId}/${id}`, 'POST');
-            if(res.success) { data = {...data, ...res}; render(); }
-            else tg.showAlert(res.error);
+            if(D.balance < price) return;
+            const r = await api(`/buy/${uid}/${id}`, 'POST');
+            if(r.success) { D={...D,...r}; render(); } else tg.showAlert(r.error);
         }
 
-        function shareRef() {
-            api(`/referral_link/${userId}?bot=MagnatZeroBot`).then(d => {
-                tg.openTelegramLink(d.link);
-            });
-        }
-
-        function switchTab(t) {
-            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('upgrades-tab').style.display = t === 'upgrades' ? 'block' : 'none';
-            document.getElementById('leaderboard-tab').style.display = t === 'leaderboard' ? 'block' : 'none';
-            if(t === 'leaderboard') loadTop();
-        }
-
-        async function loadTop() {
-            const top = await api('/leaderboard');
-            document.getElementById('leaderboard-tab').innerHTML = top.map((p, i) => `
-                <div class="list-item" style="${p.chat_id==userId?'border:1px solid #667eea':''}">
-                    <div class="item-left">
-                        <div class="item-icon" style="background:${i<3?'gold':'#333'};color:${i<3?'#000':'#fff'}">#${p.rank}</div>
-                        <div class="item-name">Player #${p.chat_id}</div>
+        async function renderQuests() {
+            const qs = await api(`/quests/${uid}`);
+            const el = document.getElementById('quests');
+            let h = '';
+            qs.forEach(q => {
+                const pct = Math.min(q.progress / q.target * 100, 100);
+                const ready = q.progress >= q.target && !q.claimed;
+                h += `<div class="card">
+                    <div class="card-left">
+                        <div class="icon">${q.daily?'📅':'🏆'}</div>
+                        <div style="flex:1">
+                            <div class="name">${q.name}</div>
+                            <div class="desc">${q.desc}</div>
+                            <div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div>
+                            <div class="desc">${q.progress}/${q.target}</div>
+                        </div>
                     </div>
-                    <div style="font-weight:bold">${p.balance}$</div>
+                    <button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed?'✅':'🎁 '+q.reward+'$'}</button>
+                </div>`;
+            });
+            el.innerHTML = h;
+        }
+
+        async function claim(id) {
+            const r = await api(`/claim_quest/${uid}/${id}`, 'POST');
+            if(r.success) { D.balance = r.balance; tg.showAlert(`Получено ${r.reward}$!`); render(); renderQuests(); }
+            else tg.showAlert(r.error);
+        }
+
+        async function renderTop() {
+            const top = await api('/leaderboard');
+            document.getElementById('top').innerHTML = top.map((p,i) => `
+                <div class="card" style="${p.chat_id==uid?'border:1px solid var(--accent)':''}">
+                    <div class="card-left">
+                        <div class="icon" style="background:${i<3?'var(--gold)':'#334155'};color:${i<3?'#000':'#fff'}">#${p.rank}</div>
+                        <div class="name">Игрок #${p.chat_id}</div>
+                    </div>
+                    <div style="font-weight:700">${p.balance}$</div>
                 </div>
             `).join('');
         }
 
+        function tab(t) {
+            document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+            event.target.classList.add('active');
+            ['upgrades','quests','top'].forEach(id=>document.getElementById(id).style.display='none');
+            document.getElementById(t).style.display='block';
+            if(t==='quests') renderQuests();
+            if(t==='top') renderTop();
+        }
+
+        function shareRef() {
+            api(`/referral_link/${uid}?bot=MagnatZeroBot`).then(d=>tg.openTelegramLink(d.link));
+        }
+
         load();
-        setInterval(() => {
-            if(data.passive_income > 0) { data.balance += data.passive_income; render(); }
-        }, 1000);
+        setInterval(()=>{ if(D.passive_income>0){D.balance+=D.passive_income; render();} }, 1000);
     </script>
 </body>
 </html>
