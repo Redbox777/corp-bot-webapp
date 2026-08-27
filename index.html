@@ -2,212 +2,182 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Корпорация с нуля</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Корпорация</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; min-height: 100vh; padding: 16px; }
-        .header { text-align: center; padding: 12px 0; }
-        .title { font-size: 22px; font-weight: 700; }
-        .subtitle { font-size: 13px; color: #a0a0b0; margin-top: 4px; }
-        .balance-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; padding: 20px; margin: 16px 0; text-align: center; }
-        .balance-label { font-size: 12px; opacity: 0.9; }
-        .balance-value { font-size: 36px; font-weight: 800; margin: 8px 0; }
-        .passive-income { font-size: 13px; opacity: 0.95; }
-        .stats-row { display: flex; justify-content: space-around; padding: 12px 0; }
-        .stat { text-align: center; }
-        .stat-val { font-size: 18px; font-weight: 600; }
-        .stat-label { font-size: 11px; color: #a0a0b0; margin-top: 4px; }
-        .main-btn { width: 100%; padding: 18px; border: none; border-radius: 16px; font-size: 17px; font-weight: 600; background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); color: white; margin: 8px 0; }
-        .referral-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-        .tab { flex: 1; padding: 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 12px; color: white; font-weight: 600; }
-        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .upgrade-card, .ref-card, .leader-item { background: rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .leader-item { padding: 10px; }
-        .rank-num { width: 30px; height: 30px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; }
-        .rank-1 { background: gold; color: black; }
-        .rank-2 { background: silver; color: black; }
-        .rank-3 { background: #cd7f32; color: black; }
-        .buy-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; padding: 10px 16px; border-radius: 10px; color: white; font-size: 13px; font-weight: 600; }
-        .buy-btn:disabled { background: #555; }
-        .copy-btn { background: rgba(255,255,255,0.2); border: none; padding: 10px 16px; border-radius: 10px; color: white; font-size: 13px; }
+        :root { --bg: #1a1a2e; --card: rgba(255,255,255,0.08); --primary: #667eea; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; overflow-x: hidden; }
+        
+        .header { text-align: center; margin-bottom: 16px; }
+        .title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+        
+        .balance-card { background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 24px; padding: 24px; text-align: center; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); position: relative; overflow: hidden; }
+        .balance-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
+        .balance-value { font-size: 42px; font-weight: 900; margin: 8px 0; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .stats-row { display: flex; justify-content: space-around; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .stat-item { text-align: center; }
+        .stat-val { font-size: 16px; font-weight: 700; }
+        .stat-label { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+        
+        .click-area { margin: 20px 0; display: flex; justify-content: center; }
+        .click-btn { 
+            width: 160px; height: 160px; border-radius: 50%; 
+            background: radial-gradient(circle at 30% 30%, #4facfe, #00f2fe); 
+            border: none; box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+            display: flex; align-items: center; justify-content: center; flex-direction: column;
+            transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer; position: relative; overflow: hidden;
+        }
+        .click-btn:active { transform: scale(0.92); }
+        .click-icon { font-size: 48px; margin-bottom: 4px; }
+        .click-text { font-size: 14px; font-weight: 700; color: #003; }
+        
+        .power-info { text-align: center; margin-top: 12px; font-size: 13px; opacity: 0.7; }
+        
+        .tabs { display: flex; background: var(--card); border-radius: 16px; padding: 4px; margin-bottom: 16px; }
+        .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #fff; border-radius: 12px; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .tab.active { background: rgba(255,255,255,0.15); }
+        
+        .list-item { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .item-left { display: flex; align-items: center; gap: 12px; }
+        .item-icon { font-size: 24px; width: 40px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .item-name { font-weight: 600; font-size: 15px; }
+        .item-desc { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+        .btn-buy { background: #38ef7d; color: #000; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 13px; }
+        .btn-buy:disabled { background: #444; color: #888; }
+        
+        .ref-btn { width: 100%; padding: 14px; background: linear-gradient(90deg, #f093fb, #f5576c); border: none; border-radius: 14px; color: #fff; font-weight: 700; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="title">💼 Корпорация</div>
-        <div class="subtitle">Строй империю с нуля</div>
+        <div class="title">💼 CORPORATION</div>
     </div>
-    
+
     <div class="balance-card">
-        <div class="balance-label">Баланс</div>
+        <div class="balance-label">Total Balance</div>
         <div class="balance-value" id="balance">0$</div>
-        <div class="passive-income" id="passive">+0$/сек</div>
+        <div class="stats-row">
+            <div class="stat-item">
+                <div class="stat-val" id="level">1</div>
+                <div class="stat-label">LVL</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="income">+0</div>
+                <div class="stat-label">/SEC</div>
+            </div>
+        </div>
     </div>
-    
-    <div class="stats-row">
-        <div class="stat"><div class="stat-val" id="level">1</div><div class="stat-label">Уровень</div></div>
-        <div class="stat"><div class="stat-val" id="clicks">0</div><div class="stat-label">Кликов</div></div>
-        <div class="stat"><div class="stat-val" id="income">0</div><div class="stat-label">Доход/сек</div></div>
+
+    <div class="click-area">
+        <button class="click-btn" id="clickBtn">
+            <div class="click-icon">👆</div>
+            <div class="click-text">TAP</div>
+        </button>
     </div>
-    
-    <button class="main-btn" id="workBtn" onclick="doWork()">💼 Работать (+10$)</button>
-    <button class="main-btn referral-btn" onclick="openReferral()">👥 Пригласить друга</button>
-    
-    <div class="tabs">
-        <button class="tab active" onclick="switchTab('shop')"> Магазин</button>
-        <button class="tab" onclick="switchTab('leaderboard')">🏆 Топ</button>
+    <div class="power-info" id="powerInfo">Power: +10$ per click</div>
+
+    <button class="ref-btn" onclick="shareRef()"> Invite Friends (+500$)</button>
+
+    <div class="tabs" style="margin-top: 20px;">
+        <button class="tab active" onclick="switchTab('upgrades')">🚀 Upgrades</button>
+        <button class="tab" onclick="switchTab('leaderboard')">🏆 Top</button>
     </div>
-    
-    <div id="shop-tab" class="tab-content active">
-        <div id="shop-list"></div>
-    </div>
-    
-    <div id="leaderboard-tab" class="tab-content">
-        <div id="leaderboard-list"></div>
-    </div>
+
+    <div id="upgrades-tab"></div>
+    <div id="leaderboard-tab" style="display:none"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand(); tg.ready();
         const userId = tg.initDataUnsafe?.user?.id || 'test';
-        let playerData = {};
-        
-        // Проверка реферальной ссылки при старте
-        const urlParams = new URLSearchParams(window.location.search);
-        const refCode = urlParams.get('ref');
-        if (refCode && !localStorage.getItem('ref_bound_' + userId)) {
-            fetch(`/api/bind_referral/${userId}/${refCode}`, { method: 'POST' })
-                .then(r => r.json())
-                .then(d => {
-                    if(d.success) {
-                        localStorage.setItem('ref_bound_' + userId, '1');
-                        tg.showAlert(`🎁 Друг пригласил вас! Бонус +${d.bonus}$`);
-                    }
-                });
+        let data = {};
+
+        async function api(p, m='GET') { return (await fetch(`/api${p}`, {method:m})).json(); }
+
+        async function load() {
+            data = await api(`/player/${userId}`);
+            render();
         }
 
-        async function api(path, method='GET') {
-            const res = await fetch(`/api${path}`, { method });
-            return res.json();
+        function render() {
+            document.getElementById('balance').innerText = data.balance + '$';
+            document.getElementById('level').innerText = data.level;
+            document.getElementById('income').innerText = '+' + (data.passive_income||0);
+            document.getElementById('powerInfo').innerText = `Power: +${data.click_power||10}$ per click`;
+            renderShop();
         }
 
-        async function loadPlayer() {
-            playerData = await api(`/player/${userId}`);
-            updateUI();
-            loadShop();
-        }
+        document.getElementById('clickBtn').onclick = async () => {
+            const btn = document.getElementById('clickBtn');
+            btn.style.transform = 'scale(0.9)';
+            setTimeout(() => btn.style.transform = 'scale(1)', 100);
+            data = await api(`/click/${userId}`, 'POST');
+            render();
+        };
 
-        async function doWork() {
-            const btn = document.getElementById('workBtn');
-            if (btn.disabled) return;
-            btn.disabled = true;
-            try {
-                playerData = await api(`/click/${userId}`, 'POST');
-                updateUI();
-                loadShop();
-                tg.HapticFeedback.impactOccurred('medium');
-            } catch(e) { tg.showAlert('Ошибка'); }
-            btn.disabled = false;
-        }
-
-        async function openReferral() {
-            const data = await api(`/referral_link/${userId}?bot=MagnatZeroBot`); // Укажите ник вашего бота
-            tg.showPopup({
-                title: 'Пригласи друга',
-                message: `Твоя ссылка: ${data.link}`,
-                buttons: [{type: 'default', text: 'Скопировать'}, {type: 'cancel'}]
-            }, (btnId) => {
-                if(btnId === 'default') {
-                    navigator.clipboard.writeText(data.link);
-                    tg.showAlert('Ссылка скопирована!');
-                }
-            });
-        }
-
-        async function loadShop() {
-            const upgrades = await api('/shop');
-            const container = document.getElementById('shop-list');
+        async function renderShop() {
+            const shop = await api('/shop');
+            const el = document.getElementById('upgrades-tab');
             let html = '';
-            for (const [id, data] of Object.entries(upgrades)) {
-                const owned = playerData.upgrades?.[id] || 0;
-                const price = Math.floor(data.cost * Math.pow(1.15, owned));
-                html += `<div class="upgrade-card">
-                    <div style="flex:1">
-                        <div style="font-weight:600">${data.icon} ${data.name}</div>
-                        <div style="font-size:12px;color:#a0a0b0">+${data.income}$/сек</div>
-                        ${owned ? `<div style="font-size:11px;color:#66d9a8">Куплено: ${owned}</div>` : ''}
+            for(let [k, v] of Object.entries(shop)) {
+                const count = (data.upgrades||{})[k] || 0;
+                const price = Math.floor(v.cost * Math.pow(1.15, count));
+                const typeLabel = v.type === 'click' ? `+${v.power} click` : `+${v.income} sec`;
+                html += `<div class="list-item">
+                    <div class="item-left">
+                        <div class="item-icon">${v.icon}</div>
+                        <div>
+                            <div class="item-name">${v.name}</div>
+                            <div class="item-desc">${typeLabel} | Owned: ${count}</div>
+                        </div>
                     </div>
-                    <div style="text-align:right">
-                        <div style="font-weight:600">${price}$</div>
-                        <button class="buy-btn" onclick="buyUpgrade('${id}', ${price})" ${playerData.balance < price ? 'disabled' : ''}>Купить</button>
-                    </div>
+                    <button class="btn-buy" onclick="buy('${k}', ${price})" ${data.balance < price ? 'disabled' : ''}>${price}$</button>
                 </div>`;
             }
-            container.innerHTML = html;
+            el.innerHTML = html;
         }
 
-        async function buyUpgrade(id, price) {
-            if (playerData.balance < price) { tg.showAlert('Мало денег'); return; }
-            try {
-                const res = await fetch(`/api/buy/${userId}/${id}`, { method: 'POST' });
-                const data = await res.json();
-                if (data.error) tg.showAlert(data.error);
-                else {
-                    playerData = {...playerData, ...data};
-                    updateUI(); loadShop();
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            } catch(e) { tg.showAlert('Ошибка'); }
+        async function buy(id, price) {
+            if(data.balance < price) return;
+            const res = await api(`/buy/${userId}/${id}`, 'POST');
+            if(res.success) { data = {...data, ...res}; render(); }
+            else tg.showAlert(res.error);
         }
 
-        async function loadLeaderboard() {
-            const list = await api('/leaderboard');
-            const container = document.getElementById('leaderboard-list');
-            let html = '';
-            list.forEach(p => {
-                const rankClass = p.rank <= 3 ? `rank-${p.rank}` : '';
-                const isMe = p.chat_id == userId ? 'style="background:rgba(255,255,255,0.15)"' : '';
-                html += `<div class="leader-item" ${isMe}>
-                    <div class="rank-num ${rankClass}">${p.rank}</div>
-                    <div style="flex:1">
-                        <div style="font-weight:600">Игрок #${p.chat_id}</div>
-                        <div style="font-size:12px;color:#a0a0b0">Уровень ${p.level}</div>
-                    </div>
-                    <div style="font-weight:bold;color:#66d9a8">${p.balance}$</div>
-                </div>`;
+        function shareRef() {
+            api(`/referral_link/${userId}?bot=MagnatZeroBot`).then(d => {
+                tg.openTelegramLink(d.link);
             });
-            container.innerHTML = html;
         }
 
-        function updateUI() {
-            document.getElementById('balance').textContent = playerData.balance + '$';
-            document.getElementById('passive').textContent = '+' + (playerData.passive_income||0) + '$/сек';
-            document.getElementById('level').textContent = playerData.level || 1;
-            document.getElementById('clicks').textContent = playerData.clicks || 0;
-            document.getElementById('income').textContent = playerData.passive_income || 0;
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        function switchTab(t) {
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
-            document.getElementById(tab + '-tab').classList.add('active');
-            if(tab === 'leaderboard') loadLeaderboard();
+            document.getElementById('upgrades-tab').style.display = t === 'upgrades' ? 'block' : 'none';
+            document.getElementById('leaderboard-tab').style.display = t === 'leaderboard' ? 'block' : 'none';
+            if(t === 'leaderboard') loadTop();
         }
 
-        setInterval(() => {
-            if (playerData.passive_income > 0) {
-                playerData.balance += playerData.passive_income;
-                updateUI();
-            }
-        }, 1000);
+        async function loadTop() {
+            const top = await api('/leaderboard');
+            document.getElementById('leaderboard-tab').innerHTML = top.map((p, i) => `
+                <div class="list-item" style="${p.chat_id==userId?'border:1px solid #667eea':''}">
+                    <div class="item-left">
+                        <div class="item-icon" style="background:${i<3?'gold':'#333'};color:${i<3?'#000':'#fff'}">#${p.rank}</div>
+                        <div class="item-name">Player #${p.chat_id}</div>
+                    </div>
+                    <div style="font-weight:bold">${p.balance}$</div>
+                </div>
+            `).join('');
+        }
 
-        loadPlayer();
+        load();
+        setInterval(() => {
+            if(data.passive_income > 0) { data.balance += data.passive_income; render(); }
+        }, 1000);
     </script>
 </body>
 </html>
