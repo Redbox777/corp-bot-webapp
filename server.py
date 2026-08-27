@@ -1,3 +1,13 @@
+
+# 2. Сохраняем изменения (Ctrl+O → Enter → Ctrl+X)
+
+# 3. Отправляем на GitHub
+cd ~/corp-bot-webapp
+git add -A
+git commit -m "Описание обновления"
+git push origin main
+
+# 4. Ждём 1-2 минуты → Render обновится автоматически0
 from flask import Flask, jsonify, request, send_from_directory
 import os
 
