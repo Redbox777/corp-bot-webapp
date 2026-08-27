@@ -6,7 +6,7 @@
     <title>Корпорация с нуля</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -14,114 +14,199 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            padding: 16px;
         }
-        .card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 30px;
-            width: 100%;
-            max-width: 320px;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
-        .subtitle { font-size: 14px; color: #a0a0b0; margin-bottom: 24px; }
-        .balance-box {
+        .header { text-align: center; padding: 12px 0; }
+        .title { font-size: 22px; font-weight: 700; }
+        .subtitle { font-size: 13px; color: #a0a0b0; margin-top: 4px; }
+        
+        .balance-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 16px;
+            border-radius: 20px;
             padding: 20px;
-            margin-bottom: 24px;
+            margin: 16px 0;
+            text-align: center;
         }
-        .balance-label { font-size: 12px; opacity: 0.8; }
-        .balance-value { font-size: 42px; font-weight: 800; margin-top: 4px; }
-        .stats { display: flex; justify-content: space-between; margin-bottom: 24px; }
-        .stat-item { text-align: center; }
+        .balance-label { font-size: 12px; opacity: 0.9; }
+        .balance-value { font-size: 36px; font-weight: 800; margin: 8px 0; }
+        .passive-income { font-size: 13px; opacity: 0.95; }
+        
+        .stats-row { display: flex; justify-content: space-around; padding: 12px 0; }
+        .stat { text-align: center; }
         .stat-val { font-size: 18px; font-weight: 600; }
         .stat-label { font-size: 11px; color: #a0a0b0; margin-top: 4px; }
-        .btn {
+        
+        .main-btn {
             width: 100%;
-            padding: 16px;
+            padding: 18px;
             border: none;
-            border-radius: 14px;
-            font-size: 16px;
+            border-radius: 16px;
+            font-size: 17px;
             font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
-        }
-        .btn:active { transform: scale(0.97); }
-        .btn-primary {
             background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+            cursor: pointer;
+            margin: 8px 0;
+            transition: transform 0.1s;
         }
-        .loading { opacity: 0.6; pointer-events: none; }
+        .main-btn:active { transform: scale(0.98); }
+        .main-btn.loading { opacity: 0.7; pointer-events: none; }
+        
+        .shop-section { margin-top: 24px; }
+        .shop-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; padding-left: 4px; }
+        
+        .upgrade-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .upgrade-info { flex: 1; }
+        .upgrade-name { font-weight: 600; font-size: 15px; }
+        .upgrade-desc { font-size: 12px; color: #a0a0b0; margin-top: 2px; }
+        .upgrade-owned { font-size: 11px; color: #66d9a8; margin-top: 4px; }
+        
+        .upgrade-action { text-align: right; }
+        .upgrade-price { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+        .buy-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .buy-btn:disabled { background: #555; opacity: 0.6; }
+        .buy-btn.loading { opacity: 0.7; }
     </style>
 </head>
 <body>
-    <div class="card">
+    <div class="header">
         <div class="title">💼 Корпорация</div>
         <div class="subtitle">Строй империю с нуля</div>
-        
-        <div class="balance-box">
-            <div class="balance-label">Текущий баланс</div>
-            <div class="balance-value" id="balance">0$</div>
+    </div>
+    
+    <div class="balance-card">
+        <div class="balance-label">Баланс</div>
+        <div class="balance-value" id="balance">0$</div>
+        <div class="passive-income" id="passive">+0$/сек</div>
+    </div>
+    
+    <div class="stats-row">
+        <div class="stat">
+            <div class="stat-val" id="level">1</div>
+            <div class="stat-label">Уровень</div>
         </div>
-
-        <div class="stats">
-            <div class="stat-item">
-                <div class="stat-val" id="level">1</div>
-                <div class="stat-label">Уровень</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-val" id="clicks">0</div>
-                <div class="stat-label">Действий</div>
-            </div>
+        <div class="stat">
+            <div class="stat-val" id="clicks">0</div>
+            <div class="stat-label">Кликов</div>
         </div>
-
-        <button class="btn btn-primary" id="workBtn" onclick="doWork()">💼 Работать (+10$)</button>
+        <div class="stat">
+            <div class="stat-val" id="income">0</div>
+            <div class="stat-label">Доход/сек</div>
+        </div>
+    </div>
+    
+    <button class="main-btn" id="workBtn" onclick="doWork()">💼 Работать (+10$)</button>
+    
+    <div class="shop-section">
+        <div class="shop-title">🛒 Магазин бизнеса</div>
+        <div id="shop-list"></div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.ready();
-        const userId = tg.initDataUnsafe?.user?.id || 'test_user';
-        const btn = document.getElementById('workBtn');
-
-        async function loadData() {
-            try {
-                const res = await fetch(`/api/player/${userId}`);
-                const data = await res.json();
-                updateUI(data);
-            } catch (e) { console.error(e); }
+        tg.expand(); tg.ready();
+        const userId = tg.initDataUnsafe?.user?.id || 'test';
+        let playerData = {};
+        
+        async function api(path, method='GET', body=null) {
+            const opts = { method, headers: {'Content-Type': 'application/json'} };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(`/api${path}`, opts);
+            return res.json();
         }
-
+        
+        async function loadPlayer() {
+            playerData = await api(`/player/${userId}`);
+            updateUI();
+        }
+        
         async function doWork() {
+            const btn = document.getElementById('workBtn');
             if (btn.classList.contains('loading')) return;
             btn.classList.add('loading');
             try {
-                const res = await fetch(`/api/click/${userId}`, { method: 'POST' });
-                const data = await res.json();
-                updateUI(data);
+                playerData = await api(`/click/${userId}`, 'POST');
+                updateUI();
                 tg.HapticFeedback.impactOccurred('medium');
-            } catch (e) {
-                tg.showAlert('Ошибка соединения');
-            } finally {
-                btn.classList.remove('loading');
+            } catch(e) { tg.showAlert('Ошибка'); }
+            btn.classList.remove('loading');
+        }
+        
+        async function loadShop() {
+            const upgrades = await api('/shop');
+            const container = document.getElementById('shop-list');
+            let html = '';
+            for (const [id, data] of Object.entries(upgrades)) {
+                const owned = playerData.upgrades?.[id] || 0;
+                const price = Math.floor(data.cost * Math.pow(1.15, owned));
+                html += `
+                    <div class="upgrade-card">
+                        <div class="upgrade-info">
+                            <div class="upgrade-name">${data.icon} ${data.name}</div>
+                            <div class="upgrade-desc">+${data.income}$/сек</div>
+                            ${owned > 0 ? `<div class="upgrade-owned">Владеете: ${owned} шт.</div>` : ''}
+                        </div>
+                        <div class="upgrade-action">
+                            <div class="upgrade-price">${price}$</div>
+                            <button class="buy-btn" onclick="buyUpgrade('${id}', ${price})" ${playerData.balance < price ? 'disabled' : ''}>Купить</button>
+                        </div>
+                    </div>`;
             }
+            container.innerHTML = html || '<p style="color:#888;font-size:13px;padding:10px">Загрузка...</p>';
         }
-
-        function updateUI(data) {
-            document.getElementById('balance').textContent = data.balance + '$';
-            document.getElementById('level').textContent = data.level;
-            document.getElementById('clicks').textContent = data.clicks;
+        
+        async function buyUpgrade(id, price) {
+            if (playerData.balance < price) { tg.showAlert('Недостаточно монет'); return; }
+            const btn = event.target;
+            btn.classList.add('loading'); btn.disabled = true;
+            try {
+                const res = await api(`/buy/${userId}/${id}`, 'POST');
+                if (res.error) { tg.showAlert(res.error); }
+                else { 
+                    playerData = {...playerData, ...res}; 
+                    updateUI(); 
+                    loadShop(); 
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } catch(e) { tg.showAlert('Ошибка покупки'); }
+            btn.classList.remove('loading'); btn.disabled = false;
         }
-        loadData();
+        
+        function updateUI() {
+            document.getElementById('balance').textContent = playerData.balance + '$';
+            document.getElementById('passive').textContent = '+' + (playerData.passive_income||0) + '$/сек';
+            document.getElementById('level').textContent = playerData.level || 1;
+            document.getElementById('clicks').textContent = playerData.clicks || 0;
+            document.getElementById('income').textContent = playerData.passive_income || 0;
+        }
+        
+        // Авто-обновление баланса (визуально)
+        setInterval(() => {
+            if (playerData.passive_income > 0) {
+                playerData.balance += playerData.passive_income;
+                updateUI();
+            }
+        }, 1000);
+        
+        loadPlayer();
+        loadShop();
     </script>
 </body>
 </html>
