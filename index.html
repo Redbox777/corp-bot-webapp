@@ -9,28 +9,23 @@
         :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --green: #10b981; --gold: #f59e0b; --gem: #8b5cf6; }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; }
-        
         .header { text-align: center; margin-bottom: 12px; }
         .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); position: relative; }
         .gem-badge { position: absolute; top: -10px; right: -10px; background: var(--gem); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(139,92,246,0.5); display: flex; align-items: center; gap: 4px; }
         .bal-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; }
         .bal-val { font-size: 38px; font-weight: 900; margin: 6px 0; }
         .mult-text { font-size: 12px; color: var(--gem); font-weight: bold; margin-top: 4px; }
-        
         .lvl-bar { height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-top: 12px; overflow: hidden; }
         .lvl-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.3s; }
         .lvl-text { font-size: 11px; margin-top: 4px; opacity: 0.7; }
-        
-        .click-btn { width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle, #60a5fa, #2563eb); border: none; margin: 20px auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(37,99,235,0.5); transition: transform 0.1s; }
+        .click-btn { width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle, #60a5fa, #2563eb); border: none; margin: 20px auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(37,99,235,0.5); transition: transform 0.1s; cursor: pointer; }
         .click-btn:active { transform: scale(0.92); }
         .click-inner { text-align: center; }
         .click-icon { font-size: 40px; }
         .click-pwr { font-size: 14px; font-weight: 700; margin-top: 4px; }
-        
         .tabs { display: flex; background: var(--card); border-radius: 14px; padding: 4px; margin: 16px 0; overflow-x: auto; }
         .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; border-radius: 10px; font-weight: 600; font-size: 13px; white-space: nowrap; }
         .tab.active { background: #334155; color: #fff; }
-        
         .list { display: flex; flex-direction: column; gap: 10px; }
         .card { background: var(--card); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: center; }
         .card-left { display: flex; align-items: center; gap: 12px; flex: 1; }
@@ -39,13 +34,11 @@
         .desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
         .prog-wrap { width: 100%; height: 4px; background: #334155; border-radius: 2px; margin-top: 6px; overflow: hidden; }
         .prog-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
-        
         .btn { border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
         .btn-buy { background: var(--green); color: #000; }
         .btn-claim { background: var(--gold); color: #000; }
         .btn-rebirth { background: var(--gem); color: #fff; width: 100%; padding: 12px; font-size: 15px; margin-top: 10px; }
         .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-        
         .prestige-card { border: 2px solid var(--gem); background: rgba(139,92,246,0.1); }
     </style>
 </head>
@@ -84,14 +77,27 @@
     <div id="top" class="list" style="display:none"></div>
 
     <script>
-        const tg = window.Telegram.WebApp; tg.expand(); tg.ready();
+        const tg = window.Telegram.WebApp; 
+        tg.expand(); tg.ready();
         const uid = tg.initDataUnsafe?.user?.id || 'test';
         let D = {};
-        const api = (p, m='GET') => fetch(`/api${p}`, {method:m}).then(r=>r.json());
+        
+        // Универсальная функция запроса с обработкой ошибок
+        const api = async (path, method='GET') => {
+            try {
+                const res = await fetch(`/api${path}`, { method });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return await res.json();
+            } catch (e) {
+                console.error('API Error:', e);
+                tg.showAlert('Ошибка соединения с сервером');
+                return null;
+            }
+        };
 
         async function load() {
-            D = await api(`/player/${uid}`);
-            render();
+            const data = await api(`/player/${uid}`);
+            if (data) { D = data; render(); }
         }
 
         function render() {
@@ -100,7 +106,6 @@
             document.getElementById('mult').innerText = (D.prestige_mult || 1.0).toFixed(2);
             document.getElementById('pwrTxt').innerText = `+${Math.floor((D.click_power||10)*(D.prestige_mult||1))}$/клик`;
             
-            const nextLvl = D.level * 100;
             const prog = Math.min((D.clicks % 100) / 100 * 100, 100);
             document.getElementById('lvlFill').style.width = prog + '%';
             document.getElementById('lvlTxt').innerText = `Уровень ${D.level} (${D.clicks % 100}/100)`;
@@ -113,18 +118,26 @@
                 rebBtn.disabled = true;
                 rebBtn.innerText = "Недоступно (Нужен 5 Ур.)";
             }
-            
             renderShop();
         }
 
-        document.getElementById('cBtn').onclick = async () => {
-            const b = document.getElementById('cBtn'); b.style.transform='scale(0.9)';
-            setTimeout(()=>b.style.transform='scale(1)', 100);
-            D = await api(`/click/${uid}`, 'POST'); render();
-        };
+        // ИСПРАВЛЕННЫЙ КЛИК
+        document.getElementById('cBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('cBtn');
+            btn.style.transform = 'scale(0.9)';
+            setTimeout(() => btn.style.transform = 'scale(1)', 100);
+            
+            const res = await api(`/click/${uid}`, 'POST');
+            if (res) {
+                D = { ...D, ...res };
+                render();
+                if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            }
+        });
 
         async function renderShop() {
             const shop = await api('/shop');
+            if (!shop) return;
             const el = document.getElementById('upgrades');
             let h = '';
             for(let [k,v] of Object.entries(shop)) {
@@ -145,11 +158,13 @@
         async function buy(id, price) {
             if(D.balance < price) return;
             const r = await api(`/buy/${uid}/${id}`, 'POST');
-            if(r.success) { D={...D,...r}; render(); } else tg.showAlert(r.error);
+            if(r && r.success) { D={...D,...r}; render(); } 
+            else if(r) tg.showAlert(r.error);
         }
 
         async function renderQuests() {
             const qs = await api(`/quests/${uid}`);
+            if(!qs) return;
             const el = document.getElementById('quests');
             let h = '';
             qs.forEach(q => {
@@ -157,7 +172,7 @@
                 const ready = q.progress >= q.target && !q.claimed;
                 h += `<div class="card">
                     <div class="card-left">
-                        <div class="icon">${q.daily?'📅':'🏆'}</div>
+                        <div class="icon">${q.daily?'':'🏆'}</div>
                         <div style="flex:1">
                             <div class="name">${q.name}</div>
                             <div class="desc">${q.desc}</div>
@@ -165,7 +180,7 @@
                             <div class="desc">${q.progress}/${q.target}</div>
                         </div>
                     </div>
-                    <button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed?'✅':' '+q.reward+'$'}</button>
+                    <button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed?'✅':'🎁 '+q.reward+'$'}</button>
                 </div>`;
             });
             el.innerHTML = h;
@@ -173,25 +188,28 @@
 
         async function claim(id) {
             const r = await api(`/claim_quest/${uid}/${id}`, 'POST');
-            if(r.success) { D.balance = r.balance; tg.showAlert(`Получено ${r.reward}$!`); render(); renderQuests(); }
-            else tg.showAlert(r.error);
+            if(r && r.success) { 
+                D.balance = r.balance; 
+                tg.showAlert(`Получено ${r.reward}$!`); 
+                render(); renderQuests(); 
+            } else if(r) tg.showAlert(r.error);
         }
 
         async function doRebirth() {
-            tg.showConfirm("Вы уверены? Весь прогресс (деньги, здания) будет сброшен! Вы получите Кристаллы 💎", (ok) => {
+            tg.showConfirm("Вы уверены? Весь прогресс (деньги, здания) будет сброшен! Вы получите Кристаллы 💎", async (ok) => {
                 if(ok) {
-                    api(`/rebirth/${uid}`, 'POST').then(r => {
-                        if(r.success) {
-                            tg.showAlert(r.message);
-                            load();
-                        } else tg.showAlert(r.error);
-                    });
+                    const r = await api(`/rebirth/${uid}`, 'POST');
+                    if(r && r.success) {
+                        tg.showAlert(r.message);
+                        load();
+                    } else if(r) tg.showAlert(r.error);
                 }
             });
         }
 
         async function renderTop() {
             const top = await api('/leaderboard');
+            if(!top) return;
             document.getElementById('top').innerHTML = top.map((p,i) => `
                 <div class="card" style="${p.chat_id==uid?'border:1px solid var(--accent)':''}">
                     <div class="card-left">
@@ -212,8 +230,14 @@
             if(t==='top') renderTop();
         }
 
+        // Запуск
         load();
-        setInterval(()=>{ if(D.passive_income>0){D.balance+=Math.floor(D.passive_income*(D.prestige_mult||1)); render();} }, 1000);
+        setInterval(()=>{ 
+            if(D.passive_income>0){
+                D.balance += Math.floor(D.passive_income*(D.prestige_mult||1)); 
+                render();
+            } 
+        }, 1000);
     </script>
 </body>
 </html>

@@ -6,7 +6,6 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Константы
 UPGRADES = {
     "shawarma": {"name": "Ларёк", "cost": 100, "income": 2, "icon": "🌯", "type": "passive"},
     "coffee": {"name": "Кофе", "cost": 500, "income": 10, "icon": "", "type": "passive"},
@@ -25,7 +24,7 @@ QUESTS = [
 ]
 
 def get_db():
-    conn = sqlite3.connect('players.db')
+    conn = sqlite3.connect('players.db', timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -40,11 +39,9 @@ def init_db():
         referral_earnings INTEGER DEFAULT 0, quests_data TEXT DEFAULT '{}',
         prestige_points INTEGER DEFAULT 0, prestige_mult REAL DEFAULT 1.0, total_prestiges INTEGER DEFAULT 0
     )''')
-    
-    # Безопасное добавление колонок
     for col, default in [("prestige_points", "0"), ("prestige_mult", "1.0"), ("total_prestiges", "0")]:
         try:
-            c.execute(f"PRAGMA table_info(players)")
+            c.execute("PRAGMA table_info(players)")
             if col not in [r[1] for r in c.fetchall()]:
                 c.execute(f"ALTER TABLE players ADD COLUMN {col} REAL DEFAULT {default}")
         except: pass
@@ -60,7 +57,6 @@ def get_player(chat_id):
     c = conn.cursor()
     c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
-    
     if not row:
         ref_code = str(int(time.time()))[-6:]
         c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, 
@@ -73,16 +69,9 @@ def get_player(chat_id):
     player["upgrades"] = json.loads(player["upgrades"] or "{}")
     player["achievements"] = json.loads(player["achievements"] or "[]")
     
-    # Безопасная работа с quests_data
     raw_q = player.get("quests_data")
-    if isinstance(raw_q, str):
-        q_data = json.loads(raw_q) if raw_q else {}
-    elif isinstance(raw_q, dict):
-        q_data = raw_q
-    else:
-        q_data = {}
+    q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
     
-    # Обновление квестов
     today = datetime.now().strftime("%Y-%m-%d")
     for q in QUESTS:
         if q["id"] not in q_data:
@@ -96,7 +85,6 @@ def get_player(chat_id):
     
     c.execute("UPDATE players SET quests_data = ? WHERE chat_id = ?", (json.dumps(q_data), chat_id))
     
-    # Пассивный доход
     now = time.time()
     mult = float(player.get("prestige_mult") or 1.0)
     if player["last_update"] and player["passive_income"] > 0:
@@ -209,10 +197,8 @@ def get_quests(chat_id):
     c.execute('SELECT quests_data FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone(); conn.close()
     if not row: return jsonify([])
-    
     raw_q = row["quests_data"]
     q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
-    
     return jsonify([{**q, "progress": q_data.get(q["id"], {}).get("progress", 0), 
                      "claimed": q_data.get(q["id"], {}).get("claimed", False)} for q in QUESTS])
 
@@ -222,17 +208,13 @@ def claim_quest(chat_id, quest_id):
     c.execute('SELECT quests_data, balance FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
     if not row: conn.close(); return jsonify({"error": "Not found"}), 404
-    
     raw_q = row["quests_data"]
     q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
-    
     if quest_id not in q_data or q_data[quest_id]["claimed"]:
         conn.close(); return jsonify({"error": "Already claimed"}), 400
-    
     quest = next((q for q in QUESTS if q["id"] == quest_id), None)
     if not quest or q_data[quest_id]["progress"] < quest["target"]:
         conn.close(); return jsonify({"error": "Not ready"}), 400
-    
     q_data[quest_id]["claimed"] = True
     nb = (row["balance"] or 0) + quest["reward"]
     c.execute('UPDATE players SET balance=?, quests_data=? WHERE chat_id=?', (nb, json.dumps(q_data), chat_id))
@@ -243,8 +225,8 @@ def claim_quest(chat_id, quest_id):
 def leaderboard():
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT chat_id, balance, level FROM players ORDER BY balance DESC LIMIT 50')
-    rows = c.fetchall()  # Сначала получаем данные!
-    conn.close()  # Потом закрываем
+    rows = c.fetchall()
+    conn.close()
     return jsonify([{"rank": i+1, "chat_id": r["chat_id"], "balance": r["balance"], "level": r["level"]} for i, r in enumerate(rows)])
 
 @app.route('/api/referral_link/<chat_id>', methods=['GET'])
@@ -262,11 +244,9 @@ def bind_ref(chat_id, ref_code):
     c.execute('SELECT referred_by FROM players WHERE chat_id = ?', (chat_id,))
     row = c.fetchone()
     if not row or row["referred_by"]: conn.close(); return jsonify({"error": "Already bound"}), 400
-    
     c.execute('SELECT chat_id FROM players WHERE referral_code = ?', (ref_code,))
     ref = c.fetchone()
     if not ref or ref["chat_id"] == chat_id: conn.close(); return jsonify({"error": "Invalid"}), 400
-    
     c.execute('UPDATE players SET referred_by = ? WHERE chat_id = ?', (ref["chat_id"], chat_id))
     c.execute('UPDATE players SET balance = balance + 500 WHERE chat_id IN (?, ?)', (ref["chat_id"], chat_id))
     conn.commit(); conn.close()
