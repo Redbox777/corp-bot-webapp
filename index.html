@@ -9,10 +9,7 @@
         :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --green: #10b981; --gold: #f59e0b; --gem: #8b5cf6; --red: #ef4444; }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; overflow: hidden; }
-        
-        /* Canvas для частиц */
         #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; }
-
         .header { text-align: center; margin-bottom: 12px; position: relative; z-index: 10; }
         .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); position: relative; margin-bottom: 16px; }
         .gem-badge { position: absolute; top: -10px; right: -10px; background: var(--gem); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(139,92,246,0.5); display: flex; align-items: center; gap: 4px; }
@@ -22,25 +19,17 @@
         .lvl-bar { height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-top: 12px; overflow: hidden; }
         .lvl-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.3s; }
         .lvl-text { font-size: 11px; margin-top: 4px; opacity: 0.7; }
-        
-        /* Кнопка клика */
         .click-area { display: flex; justify-content: center; margin: 10px 0; position: relative; z-index: 10; }
         .click-btn { width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, #60a5fa, #2563eb); border: 4px solid #93c5fd; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(37,99,235,0.4); transition: transform 0.05s; cursor: pointer; position: relative; overflow: hidden; }
         .click-btn:active { transform: scale(0.92); }
-        .click-btn::after { content: ''; position: absolute; width: 100%; height: 100%; background: rgba(255,255,255,0.2); border-radius: 50%; opacity: 0; transition: opacity 0.2s; }
-        .click-btn:active::after { opacity: 1; }
         .click-inner { text-align: center; pointer-events: none; }
         .click-icon { font-size: 50px; }
         .click-pwr { font-size: 16px; font-weight: 800; margin-top: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        
-        /* Вкладки */
         .tabs { display: flex; background: var(--card); border-radius: 14px; padding: 4px; margin: 16px 0; overflow-x: auto; position: relative; z-index: 10; }
         .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; border-radius: 10px; font-weight: 600; font-size: 13px; white-space: nowrap; text-align: center; transition: 0.2s; }
         .tab.active { background: #334155; color: #fff; }
         .tab-boss { background: rgba(239, 68, 68, 0.15); color: var(--red); }
         .tab-boss.active { background: var(--red); color: #fff; }
-        
-        /* Списки и Карточки */
         .list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; overflow-y: auto; height: calc(100vh - 360px); position: relative; z-index: 10; }
         .card { background: var(--card); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); }
         .card-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
@@ -54,14 +43,10 @@
         .btn-buy { background: var(--green); color: #000; }
         .btn-claim { background: var(--gold); color: #000; }
         .btn-rebirth { background: var(--gem); color: #fff; width: 100%; padding: 14px; font-size: 16px; margin-top: 10px; border-radius: 12px; }
-        .btn-boss { background: var(--red); color: #fff; width: 100%; padding: 16px; font-size: 18px; border-radius: 12px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
         .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-        
         .prestige-card { border: 2px solid var(--gem); background: rgba(139,92,246,0.1); flex-direction: column; text-align: center; gap: 12px; }
         .boss-card { border: 2px solid var(--red); background: rgba(239, 68, 68, 0.1); flex-direction: column; text-align: center; gap: 12px; }
         .hidden { display: none; }
-        
-        /* Анимации */
         @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
         .shake { animation: shake 0.5s; }
     </style>
@@ -84,26 +69,26 @@
     </div>
 
     <div class="tabs">
-        <button class="tab active" onclick="switchTab('upgrades', this)">🛒 Магазин</button>
+        <button class="tab active" onclick="switchTab('upgrades', this)"> Магазин</button>
         <button class="tab" onclick="switchTab('quests', this)">📋 Квесты</button>
         <button class="tab tab-boss" onclick="switchTab('boss', this)">👹 Босс</button>
         <button class="tab" onclick="switchTab('rebirth', this)">💎 Перерождение</button>
-        <button class="tab" onclick="switchTab('top', this)">🏆 Топ</button>
+        <button class="tab" onclick="switchTab('top', this)"> Топ</button>
     </div>
 
     <div id="upgrades" class="list"></div>
     <div id="quests" class="list hidden"></div>
     <div id="boss" class="list hidden">
         <div class="card boss-card">
-            <div style="font-size: 60px;" id="boss-icon">👹</div>
-            <div class="name" style="color: var(--red); font-size: 20px;" id="boss-name">Меха-Голем</div>
+            <div style="font-size: 70px;" id="boss-icon">🐉</div>
+            <div class="name" style="color: var(--red); font-size: 22px;" id="boss-name">Огненный Дракон</div>
             <div class="desc" style="text-align:center; font-size: 14px; color: #fff;">Уровень <span id="boss-lvl">1</span></div>
-            <div class="prog-wrap" style="height: 8px; margin-top: 10px; width: 100%;">
+            <div class="prog-wrap" style="height: 10px; margin-top: 15px; width: 100%; border-radius: 5px;">
                 <div class="prog-fill" id="boss-hp" style="width: 100%; background: var(--red);"></div>
             </div>
-            <div class="desc" style="text-align:center; margin-top: 4px;"><span id="boss-hp-text">10000</span> HP</div>
-            <div class="desc" style="text-align:center; margin-top: 8px;">Награда: <span id="boss-reward" style="color: var(--gold);">20000$</span></div>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Бейте вместе, чтобы победить!</div>
+            <div class="desc" style="text-align:center; margin-top: 8px; font-size: 16px;"><span id="boss-hp-text">10000</span> HP</div>
+            <div class="desc" style="text-align:center; margin-top: 8px;">Награда: <span id="boss-reward" style="color: var(--gold); font-size: 18px;">20000$</span></div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">Бейте вместе, чтобы победить!</div>
         </div>
     </div>
     <div id="rebirth" class="list hidden">
@@ -124,6 +109,9 @@
         let D = {};
         let Boss = { hp: 10000, max_hp: 10000, level: 1 };
         
+        // ИСПРАВЛЕННЫЕ ИКОНКИ БОССОВ
+        const bossIcons = ['🐉', '🦖', '', '👽', '🧛', '👑'];
+
         const api = async (path, method='GET') => {
             try {
                 const res = await fetch(`/api${path}`, { method });
@@ -165,17 +153,18 @@
         function renderBoss() {
             document.getElementById('boss-name').innerText = Boss.name;
             document.getElementById('boss-lvl').innerText = Boss.level;
-            document.getElementById('boss-hp-text').innerText = Math.floor(Boss.hp);
-            document.getElementById('boss-reward').innerText = Math.floor(Boss.max_hp * 2) + '$';
+            document.getElementById('boss-hp-text').innerText = Math.floor(Boss.hp).toLocaleString();
+            document.getElementById('boss-reward').innerText = Math.floor(Boss.max_hp * 2).toLocaleString() + '$';
+            
             const pct = Math.max(0, (Boss.hp / Boss.max_hp) * 100);
             document.getElementById('boss-hp').style.width = pct + '%';
             
-            // Смена иконки босса в зависимости от уровня
-            const icons = ['👹', '', '🦖', '', '🤖', '️'];
-            document.getElementById('boss-icon').innerText = icons[(Boss.level - 1) % icons.length];
+            // Выбор иконки по уровню
+            const iconIndex = (Boss.level - 1) % bossIcons.length;
+            document.getElementById('boss-icon').innerText = bossIcons[iconIndex];
         }
 
-        // --- ЧАСТИЦЫ (Визуал) ---
+        // --- ЧАСТИЦЫ ---
         const canvas = document.getElementById('particles');
         const ctx = canvas.getContext('2d');
         let particles = [];
@@ -185,15 +174,15 @@
         resizeCanvas();
 
         function spawnParticles(x, y, text, color = '#fff') {
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 8; i++) {
                 particles.push({
                     x, y,
-                    vx: (Math.random() - 0.5) * 10,
-                    vy: (Math.random() - 0.5) * 10 - 5,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12 - 5,
                     life: 1.0,
                     color,
                     text: i === 0 ? text : null,
-                    size: i === 0 ? 20 : Math.random() * 5 + 2
+                    size: i === 0 ? 22 : Math.random() * 6 + 2
                 });
             }
         }
@@ -203,13 +192,16 @@
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.x += p.vx; p.y += p.vy;
-                p.vy += 0.5; // Gravity
-                p.life -= 0.03;
+                p.vy += 0.6; 
+                p.life -= 0.035;
                 
                 ctx.globalAlpha = p.life;
                 if (p.text) {
                     ctx.fillStyle = p.color;
                     ctx.font = `bold ${p.size}px sans-serif`;
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 2;
+                    ctx.strokeText(p.text, p.x, p.y);
                     ctx.fillText(p.text, p.x, p.y);
                 } else {
                     ctx.fillStyle = p.color;
@@ -218,20 +210,18 @@
                     ctx.fill();
                 }
                 ctx.globalAlpha = 1;
-                
                 if (p.life <= 0) particles.splice(i, 1);
             }
             requestAnimationFrame(updateParticles);
         }
         updateParticles();
 
-        // --- КЛИК С ЭФФЕКТАМИ ---
+        // --- КЛИК ---
         document.getElementById('cBtn').addEventListener('click', async (e) => {
             const btn = document.getElementById('cBtn');
             btn.style.transform = 'scale(0.92)';
             setTimeout(() => btn.style.transform = 'scale(1)', 100);
             
-            // Эффект тряски при высоком уроне
             if ((D.click_power||10) * (D.prestige_mult||1) > 1000) {
                 document.body.classList.add('shake');
                 setTimeout(() => document.body.classList.remove('shake'), 500);
@@ -241,29 +231,25 @@
             if (res) {
                 D = { ...D, ...res };
                 
-                // Частицы урона боссу
                 if (res.boss_dmg) {
                     const rect = btn.getBoundingClientRect();
                     spawnParticles(rect.left + rect.width/2, rect.top, `-${res.boss_dmg}`, '#ef4444');
                     if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
                 } else {
-                    // Частицы денег
                     const rect = btn.getBoundingClientRect();
                     spawnParticles(rect.left + rect.width/2, rect.top, `+${D.click_power * (D.prestige_mult||1)}$`, '#10b981');
                     if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
                 }
 
-                // Если босс убит
                 if (res.boss_killed) {
                     D.balance += res.boss_killed.reward;
-                    tg.showAlert(`🎉 Босс повержен! +${res.boss_killed.reward}$`);
-                    // Салют
-                    for(let k=0; k<10; k++) setTimeout(() => spawnParticles(Math.random()*window.innerWidth, Math.random()*window.innerHeight, '', '#f59e0b'), k*100);
+                    tg.showAlert(` Босс повержен! +${res.boss_killed.reward}$`);
+                    for(let k=0; k<15; k++) setTimeout(() => spawnParticles(Math.random()*window.innerWidth, Math.random()*window.innerHeight, '', '#f59e0b'), k*80);
                     if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
                 }
                 
                 render();
-                renderBoss(); // Обновляем HP босса
+                renderBoss();
             }
         });
 
@@ -280,7 +266,6 @@
         function updateCurrentTab() {
             if (currentTab === 'upgrades') renderShop();
             if (currentTab === 'quests') renderQuests();
-            if (currentTab === 'boss') { /* Boss UI уже обновляется */ }
             if (currentTab === 'top') renderTop();
         }
 
@@ -315,7 +300,7 @@
                 const pct = Math.min(q.progress / q.target * 100, 100);
                 const ready = q.progress >= q.target && !q.claimed;
                 const icon = q.daily ? '📅' : '🏆'; 
-                h += `<div class="card"><div class="card-left"><div class="icon">${icon}</div><div style="min-width:0; flex:1;"><div class="name">${q.name}</div><div class="desc">${q.desc}</div><div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div><div class="desc" style="margin-top:4px">${q.progress}/${q.target}</div></div></div><button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed ? '✅' : '🎁'}</button></div>`;
+                h += `<div class="card"><div class="card-left"><div class="icon">${icon}</div><div style="min-width:0; flex:1;"><div class="name">${q.name}</div><div class="desc">${q.desc}</div><div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div><div class="desc" style="margin-top:4px">${q.progress}/${q.target}</div></div></div><button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed ? '✅' : ''}</button></div>`;
             });
             el.innerHTML = h;
         }
@@ -352,17 +337,13 @@
             el.innerHTML = top.map((p,i) => `<div class="card" style="${p.chat_id==uid?'border:1px solid var(--accent)':''}"><div class="card-left"><div class="icon" style="background:${i<3?'var(--gold)':'#334155'};color:${i<3?'#000':'#fff'}">#${p.rank}</div><div class="name">Игрок #${p.chat_id}</div></div><div style="font-weight:700; color: var(--green)">${p.balance}$</div></div>`).join('');
         }
 
-        // Запуск
         load();
         setInterval(()=>{ 
             if(D.passive_income > 0){
-                // Пассивный доход тоже бьет босса (слабо)
                 const dmg = Math.floor((D.passive_income * (D.prestige_mult||1)) * 0.1);
-                // Визуально обновляем босса
                 Boss.hp -= dmg;
                 if(Boss.hp < 0) Boss.hp = 0;
                 renderBoss();
-
                 D.balance += Math.floor(D.passive_income * (D.prestige_mult||1)); 
                 render();
             } 

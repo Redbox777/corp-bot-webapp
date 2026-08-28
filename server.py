@@ -52,11 +52,11 @@ def init_db():
     # Таблица Босса (Общая для всех)
     c.execute(f'''CREATE TABLE IF NOT EXISTS boss (
         id INTEGER PRIMARY KEY CHECK (id = 1), 
-        name TEXT DEFAULT 'Меха-Голем', hp INTEGER DEFAULT 10000, max_hp INTEGER DEFAULT 10000, 
+        name TEXT DEFAULT 'Огненный Дракон', hp INTEGER DEFAULT 10000, max_hp INTEGER DEFAULT 10000, 
         level INTEGER DEFAULT 1, status TEXT DEFAULT 'active'
     )''')
     # Вставляем босса если нет
-    c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level) VALUES (1, 'Меха-Голем', 10000, 10000, 1) ON CONFLICT (id) DO NOTHING")
+    c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level) VALUES (1, 'Огненный Дракон', 10000, 10000, 1) ON CONFLICT (id) DO NOTHING")
     conn.commit()
     conn.close()
 
