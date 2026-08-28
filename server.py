@@ -6,6 +6,7 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
+# Автоматическое определение базы: PostgreSQL на Render, SQLite локально
 USE_PG = bool(os.environ.get('DATABASE_URL'))
 PARAM = '%s' if USE_PG else '?'
 
@@ -108,7 +109,6 @@ def click(chat_id):
     conn = get_db(); c = conn.cursor()
     c.execute(f'SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult FROM players WHERE chat_id = {PARAM}', (chat_id,))
     row = c.fetchone()
-    
     if not row:
         ref_code = str(int(time.time()))[-6:]
         c.execute(f'''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
@@ -117,16 +117,13 @@ def click(chat_id):
         conn.commit()
         res = {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
     else:
-        row_dict = dict(row)
-        pwr = row_dict.get("click_power") or 10
-        mult = float(row_dict.get("prestige_mult") or 1.0)
-        final_pwr = int(pwr * mult)
-        nb = (row_dict.get("balance") or 0) + final_pwr
-        nc = (row_dict.get("clicks") or 0) + 1
-        nt = (row_dict.get("total_earned") or 0) + final_pwr
+        rd = dict(row)
+        pwr = rd.get("click_power") or 10; mult = float(rd.get("prestige_mult") or 1.0)
+        nb = (rd.get("balance") or 0) + int(pwr * mult)
+        nc = (rd.get("clicks") or 0) + 1; nt = (rd.get("total_earned") or 0) + int(pwr * mult)
         c.execute(f'UPDATE players SET balance={PARAM}, clicks={PARAM}, total_earned={PARAM}, last_update={PARAM} WHERE chat_id={PARAM}', (nb, nc, nt, time.time(), chat_id))
         conn.commit()
-        res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(row_dict.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult}
+        res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(rd.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult}
     conn.close()
     return jsonify(res)
 
@@ -157,16 +154,16 @@ def rebirth(chat_id):
     c.execute(f'SELECT balance, total_earned, level, prestige_points, prestige_mult, total_prestiges FROM players WHERE chat_id = {PARAM}', (chat_id,))
     row = c.fetchone()
     if not row: conn.close(); return jsonify({"error": "Not found"}), 404
-    row_dict = dict(row)
-    lvl = row_dict.get("level") or 1; te = row_dict.get("total_earned") or 0
-    if lvl < 5 and te < 5000: conn.close(); return jsonify({"error": f"Нужен 5 ур. или 5000$ (сейчас: {lvl} / {te})"}), 400
-    pp = row_dict.get("prestige_points") or 0; gems = max(1, (te // 5000) - pp)
-    new_gems = pp + gems; new_mult = 1.0 + (new_gems * 0.05); new_prest = (row_dict.get("total_prestiges") or 0) + 1
+    rd = dict(row)
+    lvl = rd.get("level") or 1; te = rd.get("total_earned") or 0
+    if lvl < 5 and te < 5000: conn.close(); return jsonify({"error": f"Нужен 5 ур. или 5000$ (сейчас: {lvl}/{te})"}), 400
+    pp = rd.get("prestige_points") or 0; gems = max(1, (te // 5000) - pp)
+    ng = pp + gems; nm = 1.0 + (ng * 0.05); np = (rd.get("total_prestiges") or 0) + 1
     c.execute(f'''UPDATE players SET balance=0, clicks=0, level=1, passive_income=0, click_power=10, upgrades='{{}}',
         total_earned=0, last_update={PARAM}, prestige_points={PARAM}, prestige_mult={PARAM}, total_prestiges={PARAM} WHERE chat_id={PARAM}''',
-        (time.time(), new_gems, new_mult, new_prest, chat_id))
+        (time.time(), ng, nm, np, chat_id))
     conn.commit(); conn.close()
-    return jsonify({"success": True, "gems_added": gems, "total_gems": new_gems, "multiplier": new_mult, "message": f"+{gems} 💎"})
+    return jsonify({"success": True, "gems_added": gems, "total_gems": ng, "multiplier": nm, "message": f"+{gems} 💎"})
 
 @app.route('/api/quests/<chat_id>', methods=['GET'])
 def get_quests(chat_id):
@@ -174,9 +171,9 @@ def get_quests(chat_id):
     c.execute(f'SELECT quests_data FROM players WHERE chat_id = {PARAM}', (chat_id,))
     row = c.fetchone(); conn.close()
     if not row: return jsonify([])
-    raw_q = row["quests_data"] if isinstance(row, dict) else row[0]
-    q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
-    return jsonify([{**q, "progress": q_data.get(q["id"], {}).get("progress", 0), "claimed": q_data.get(q["id"], {}).get("claimed", False)} for q in QUESTS])
+    raw = row["quests_data"] if isinstance(row, dict) else row[0]
+    qd = json.loads(raw) if isinstance(raw, str) and raw else (raw if isinstance(raw, dict) else {})
+    return jsonify([{**q, "progress": qd.get(q["id"], {}).get("progress", 0), "claimed": qd.get(q["id"], {}).get("claimed", False)} for q in QUESTS])
 
 @app.route('/api/claim_quest/<chat_id>/<quest_id>', methods=['POST'])
 def claim_quest(chat_id, quest_id):
@@ -184,16 +181,15 @@ def claim_quest(chat_id, quest_id):
     c.execute(f'SELECT quests_data, balance FROM players WHERE chat_id = {PARAM}', (chat_id,))
     row = c.fetchone()
     if not row: conn.close(); return jsonify({"error": "Not found"}), 404
-    row_dict = dict(row)
-    raw_q = row_dict.get("quests_data")
-    q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
-    if quest_id not in q_data or q_data[quest_id]["claimed"]: conn.close(); return jsonify({"error": "Already claimed"}), 400
-    quest = next((q for q in QUESTS if q["id"] == quest_id), None)
-    if not quest or q_data[quest_id]["progress"] < quest["target"]: conn.close(); return jsonify({"error": "Not ready"}), 400
-    q_data[quest_id]["claimed"] = True; nb = (row_dict.get("balance") or 0) + quest["reward"]
-    c.execute(f'UPDATE players SET balance={PARAM}, quests_data={PARAM} WHERE chat_id={PARAM}', (nb, json.dumps(q_data), chat_id))
+    rd = dict(row); raw = rd.get("quests_data")
+    qd = json.loads(raw) if isinstance(raw, str) and raw else (raw if isinstance(raw, dict) else {})
+    if quest_id not in qd or qd[quest_id]["claimed"]: conn.close(); return jsonify({"error": "Already claimed"}), 400
+    q = next((x for x in QUESTS if x["id"] == quest_id), None)
+    if not q or qd[quest_id]["progress"] < q["target"]: conn.close(); return jsonify({"error": "Not ready"}), 400
+    qd[quest_id]["claimed"] = True; nb = (rd.get("balance") or 0) + q["reward"]
+    c.execute(f'UPDATE players SET balance={PARAM}, quests_data={PARAM} WHERE chat_id={PARAM}', (nb, json.dumps(qd), chat_id))
     conn.commit(); conn.close()
-    return jsonify({"success": True, "balance": nb, "reward": quest["reward"]})
+    return jsonify({"success": True, "balance": nb, "reward": q["reward"]})
 
 @app.route('/api/leaderboard', methods=['GET'])
 def leaderboard():
