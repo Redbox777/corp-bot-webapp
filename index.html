@@ -108,8 +108,6 @@
         const uid = tg.initDataUnsafe?.user?.id || 'test';
         let D = {};
         let Boss = { hp: 10000, max_hp: 10000, level: 1 };
-        
-        // ИСПРАВЛЕННЫЕ ИКОНКИ БОССОВ
         const bossIcons = ['🐉', '🦖', '', '👽', '🧛', '👑'];
 
         const api = async (path, method='GET') => {
@@ -119,6 +117,7 @@
                 return await res.json();
             } catch (e) {
                 console.error('API Error:', e);
+                tg.showAlert('Ошибка сервера: ' + e.message);
                 return null;
             }
         };
@@ -159,31 +158,20 @@
             const pct = Math.max(0, (Boss.hp / Boss.max_hp) * 100);
             document.getElementById('boss-hp').style.width = pct + '%';
             
-            // Выбор иконки по уровню
             const iconIndex = (Boss.level - 1) % bossIcons.length;
             document.getElementById('boss-icon').innerText = bossIcons[iconIndex];
         }
 
-        // --- ЧАСТИЦЫ ---
         const canvas = document.getElementById('particles');
         const ctx = canvas.getContext('2d');
         let particles = [];
-
         function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
         function spawnParticles(x, y, text, color = '#fff') {
             for (let i = 0; i < 8; i++) {
-                particles.push({
-                    x, y,
-                    vx: (Math.random() - 0.5) * 12,
-                    vy: (Math.random() - 0.5) * 12 - 5,
-                    life: 1.0,
-                    color,
-                    text: i === 0 ? text : null,
-                    size: i === 0 ? 22 : Math.random() * 6 + 2
-                });
+                particles.push({ x, y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12 - 5, life: 1.0, color, text: i === 0 ? text : null, size: i === 0 ? 22 : Math.random() * 6 + 2 });
             }
         }
 
@@ -191,23 +179,13 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
-                p.x += p.vx; p.y += p.vy;
-                p.vy += 0.6; 
-                p.life -= 0.035;
-                
+                p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life -= 0.035;
                 ctx.globalAlpha = p.life;
                 if (p.text) {
-                    ctx.fillStyle = p.color;
-                    ctx.font = `bold ${p.size}px sans-serif`;
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 2;
-                    ctx.strokeText(p.text, p.x, p.y);
-                    ctx.fillText(p.text, p.x, p.y);
+                    ctx.fillStyle = p.color; ctx.font = `bold ${p.size}px sans-serif`; ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
+                    ctx.strokeText(p.text, p.x, p.y); ctx.fillText(p.text, p.x, p.y);
                 } else {
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
                 }
                 ctx.globalAlpha = 1;
                 if (p.life <= 0) particles.splice(i, 1);
@@ -216,7 +194,6 @@
         }
         updateParticles();
 
-        // --- КЛИК ---
         document.getElementById('cBtn').addEventListener('click', async (e) => {
             const btn = document.getElementById('cBtn');
             btn.style.transform = 'scale(0.92)';
@@ -228,9 +205,8 @@
             }
 
             const res = await api(`/click/${uid}`, 'POST');
-            if (res) {
+            if (res && !res.error) {
                 D = { ...D, ...res };
-                
                 if (res.boss_dmg) {
                     const rect = btn.getBoundingClientRect();
                     spawnParticles(rect.left + rect.width/2, rect.top, `-${res.boss_dmg}`, '#ef4444');
@@ -250,10 +226,11 @@
                 
                 render();
                 renderBoss();
+            } else if (res && res.error) {
+                tg.showAlert('Ошибка клика: ' + res.error);
             }
         });
 
-        // --- ВКЛАДКИ ---
         let currentTab = 'upgrades';
         function switchTab(tabName, btnElement) {
             currentTab = tabName;
@@ -269,7 +246,6 @@
             if (currentTab === 'top') renderTop();
         }
 
-        // --- МАГАЗИН ---
         async function renderShop() {
             const shop = await api('/shop');
             if (!shop) return;
@@ -290,7 +266,6 @@
             else if(r) tg.showAlert(r.error);
         }
 
-        // --- КВЕСТЫ ---
         async function renderQuests() {
             const qs = await api(`/quests/${uid}`);
             if(!qs) return;
@@ -299,7 +274,7 @@
             qs.forEach(q => {
                 const pct = Math.min(q.progress / q.target * 100, 100);
                 const ready = q.progress >= q.target && !q.claimed;
-                const icon = q.daily ? '📅' : '🏆'; 
+                const icon = q.daily ? '' : '🏆'; 
                 h += `<div class="card"><div class="card-left"><div class="icon">${icon}</div><div style="min-width:0; flex:1;"><div class="name">${q.name}</div><div class="desc">${q.desc}</div><div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div><div class="desc" style="margin-top:4px">${q.progress}/${q.target}</div></div></div><button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed ? '✅' : ''}</button></div>`;
             });
             el.innerHTML = h;
@@ -314,21 +289,21 @@
             } else if(r) tg.showAlert(r.error);
         }
 
-        // --- ПЕРЕРОЖДЕНИЕ ---
         async function doRebirth() {
             tg.showConfirm("Сброс прогресса ради кристаллов?", async (ok) => {
                 if(ok) {
                     const r = await api(`/rebirth/${uid}`, 'POST');
                     if(r && r.success) {
                         tg.showAlert(r.message);
-                        load();
+                        // Полный сброс UI после перерождения
+                        D = {}; 
+                        await load();
                         switchTab('upgrades', document.querySelector('.tab.active'));
                     } else if(r) tg.showAlert(r.error);
                 }
             });
         }
 
-        // --- ТОП ---
         async function renderTop() {
             const top = await api('/leaderboard');
             if(!top) return;

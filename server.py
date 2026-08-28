@@ -40,7 +40,6 @@ def get_db():
 def init_db():
     conn = get_db()
     c = conn.cursor()
-    # Таблица игроков
     c.execute(f'''CREATE TABLE IF NOT EXISTS players (
         chat_id TEXT PRIMARY KEY, balance INTEGER DEFAULT 0, clicks INTEGER DEFAULT 0,
         level INTEGER DEFAULT 1, passive_income INTEGER DEFAULT 0, click_power INTEGER DEFAULT 10,
@@ -49,13 +48,14 @@ def init_db():
         referral_earnings INTEGER DEFAULT 0, quests_data TEXT DEFAULT '{{}}',
         prestige_points INTEGER DEFAULT 0, prestige_mult REAL DEFAULT 1.0, total_prestiges INTEGER DEFAULT 0
     )''')
-    # Таблица Босса (Общая для всех)
+    
+    # Исправлено: добавлена колонка status
     c.execute(f'''CREATE TABLE IF NOT EXISTS boss (
         id INTEGER PRIMARY KEY CHECK (id = 1), 
         name TEXT DEFAULT 'Огненный Дракон', hp INTEGER DEFAULT 10000, max_hp INTEGER DEFAULT 10000, 
         level INTEGER DEFAULT 1, status TEXT DEFAULT 'active'
     )''')
-    # Вставляем босса если нет
+    
     c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level) VALUES (1, 'Огненный Дракон', 10000, 10000, 1) ON CONFLICT (id) DO NOTHING")
     conn.commit()
     conn.close()
@@ -114,52 +114,54 @@ def get_player(chat_id):
 
 @app.route('/api/click/<chat_id>', methods=['POST'])
 def click(chat_id):
-    conn = get_db(); c = conn.cursor()
-    c.execute(f'SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult FROM players WHERE chat_id = {PARAM}', (chat_id,))
-    row = c.fetchone()
-    
-    pwr, mult, dmg = 10, 1.0, 10
-    if row:
-        rd = dict(row)
-        pwr = rd.get("click_power") or 10
-        mult = float(rd.get("prestige_mult") or 1.0)
-        dmg = int(pwr * mult)
-    
-    # Урон боссу (пассивный доход тоже бьет, но медленнее)
-    boss_dmg = int(dmg * 0.5) 
-    c.execute("UPDATE boss SET hp = hp - ? WHERE id = 1 AND status = 'active'", (boss_dmg,))
-    
-    if not row:
-        ref_code = str(int(time.time()))[-6:]
-        c.execute(f'''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
-            last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult)
-            VALUES ({PARAM}, 10, 1, 1, 0, 10, '{{}}', {PARAM}, '[]', 10, {PARAM}, '{{}}', 0, 1.0)''', (chat_id, time.time(), ref_code))
-        conn.commit()
-        res = {"balance": 10, "clicks": 1, "level": 1, "click_power": pwr, "upgrades": {}, "total_earned": 10, "prestige_mult": mult, "boss_dmg": boss_dmg}
-    else:
-        nb = (rd.get("balance") or 0) + dmg
-        nc = (rd.get("clicks") or 0) + 1; nt = (rd.get("total_earned") or 0) + dmg
-        c.execute(f'UPDATE players SET balance={PARAM}, clicks={PARAM}, total_earned={PARAM}, last_update={PARAM} WHERE chat_id={PARAM}', (nb, nc, nt, time.time(), chat_id))
-        conn.commit()
-        res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(rd.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult, "boss_dmg": boss_dmg}
-    
-    # Проверка убийства босса
-    c.execute("SELECT hp, max_hp, level FROM boss WHERE id = 1")
-    boss_row = c.fetchone()
-    boss_hp = boss_row["hp"]
-    
-    if boss_hp <= 0:
-        reward = boss_row["max_hp"] * 2
-        new_level = boss_row["level"] + 1
-        new_max_hp = int(boss_row["max_hp"] * 1.5)
-        c.execute("UPDATE boss SET hp = ?, max_hp = ?, level = ? WHERE id = 1", (new_max_hp, new_max_hp, new_level))
-        conn.commit()
-        res["boss_killed"] = {"level": new_level, "reward": reward}
-    else:
-        res["boss"] = {"hp": boss_hp, "max_hp": boss_row["max_hp"], "level": boss_row["level"]}
+    try:
+        conn = get_db(); c = conn.cursor()
+        c.execute(f'SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult FROM players WHERE chat_id = {PARAM}', (chat_id,))
+        row = c.fetchone()
+        
+        pwr, mult, dmg = 10, 1.0, 10
+        if row:
+            rd = dict(row)
+            pwr = rd.get("click_power") or 10
+            mult = float(rd.get("prestige_mult") or 1.0)
+            dmg = int(pwr * mult)
+        
+        boss_dmg = int(dmg * 0.5) 
+        c.execute("UPDATE boss SET hp = hp - %s WHERE id = 1 AND status = 'active'", (boss_dmg,))
+        
+        if not row:
+            ref_code = str(int(time.time()))[-6:]
+            c.execute(f'''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
+                last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult)
+                VALUES ({PARAM}, 10, 1, 1, 0, 10, '{{}}', {PARAM}, '[]', 10, {PARAM}, '{{}}', 0, 1.0)''', (chat_id, time.time(), ref_code))
+            conn.commit()
+            res = {"balance": 10, "clicks": 1, "level": 1, "click_power": pwr, "upgrades": {}, "total_earned": 10, "prestige_mult": mult, "boss_dmg": boss_dmg}
+        else:
+            nb = (rd.get("balance") or 0) + dmg
+            nc = (rd.get("clicks") or 0) + 1; nt = (rd.get("total_earned") or 0) + dmg
+            c.execute(f'UPDATE players SET balance={PARAM}, clicks={PARAM}, total_earned={PARAM}, last_update={PARAM} WHERE chat_id={PARAM}', (nb, nc, nt, time.time(), chat_id))
+            conn.commit()
+            res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(rd.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult, "boss_dmg": boss_dmg}
+        
+        c.execute("SELECT hp, max_hp, level FROM boss WHERE id = 1")
+        boss_row = c.fetchone()
+        boss_hp = boss_row["hp"]
+        
+        if boss_hp <= 0:
+            reward = boss_row["max_hp"] * 2
+            new_level = boss_row["level"] + 1
+            new_max_hp = int(boss_row["max_hp"] * 1.5)
+            c.execute("UPDATE boss SET hp = %s, max_hp = %s, level = %s WHERE id = 1", (new_max_hp, new_max_hp, new_level))
+            conn.commit()
+            res["boss_killed"] = {"level": new_level, "reward": reward}
+        else:
+            res["boss"] = {"hp": boss_hp, "max_hp": boss_row["max_hp"], "level": boss_row["level"]}
 
-    conn.close()
-    return jsonify(res)
+        conn.close()
+        return jsonify(res)
+    except Exception as e:
+        print(f"CLICK ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/shop', methods=['GET'])
 def get_shop(): return jsonify(UPGRADES)
