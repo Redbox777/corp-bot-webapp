@@ -40,6 +40,7 @@ def get_db():
 def init_db():
     conn = get_db()
     c = conn.cursor()
+    # Таблица игроков
     c.execute(f'''CREATE TABLE IF NOT EXISTS players (
         chat_id TEXT PRIMARY KEY, balance INTEGER DEFAULT 0, clicks INTEGER DEFAULT 0,
         level INTEGER DEFAULT 1, passive_income INTEGER DEFAULT 0, click_power INTEGER DEFAULT 10,
@@ -48,6 +49,14 @@ def init_db():
         referral_earnings INTEGER DEFAULT 0, quests_data TEXT DEFAULT '{{}}',
         prestige_points INTEGER DEFAULT 0, prestige_mult REAL DEFAULT 1.0, total_prestiges INTEGER DEFAULT 0
     )''')
+    # Таблица Босса (Общая для всех)
+    c.execute(f'''CREATE TABLE IF NOT EXISTS boss (
+        id INTEGER PRIMARY KEY CHECK (id = 1), 
+        name TEXT DEFAULT 'Меха-Голем', hp INTEGER DEFAULT 10000, max_hp INTEGER DEFAULT 10000, 
+        level INTEGER DEFAULT 1, status TEXT DEFAULT 'active'
+    )''')
+    # Вставляем босса если нет
+    c.execute(f"INSERT OR IGNORE INTO boss (id, name, hp, max_hp, level) VALUES (1, 'Меха-Голем', 10000, 10000, 1)")
     conn.commit()
     conn.close()
 
@@ -108,21 +117,47 @@ def click(chat_id):
     conn = get_db(); c = conn.cursor()
     c.execute(f'SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult FROM players WHERE chat_id = {PARAM}', (chat_id,))
     row = c.fetchone()
+    
+    pwr, mult, dmg = 10, 1.0, 10
+    if row:
+        rd = dict(row)
+        pwr = rd.get("click_power") or 10
+        mult = float(rd.get("prestige_mult") or 1.0)
+        dmg = int(pwr * mult)
+    
+    # Урон боссу (пассивный доход тоже бьет, но медленнее)
+    boss_dmg = int(dmg * 0.5) 
+    c.execute("UPDATE boss SET hp = hp - ? WHERE id = 1 AND status = 'active'", (boss_dmg,))
+    
     if not row:
         ref_code = str(int(time.time()))[-6:]
         c.execute(f'''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
             last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult)
             VALUES ({PARAM}, 10, 1, 1, 0, 10, '{{}}', {PARAM}, '[]', 10, {PARAM}, '{{}}', 0, 1.0)''', (chat_id, time.time(), ref_code))
         conn.commit()
-        res = {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
+        res = {"balance": 10, "clicks": 1, "level": 1, "click_power": pwr, "upgrades": {}, "total_earned": 10, "prestige_mult": mult, "boss_dmg": boss_dmg}
     else:
-        rd = dict(row)
-        pwr = rd.get("click_power") or 10; mult = float(rd.get("prestige_mult") or 1.0)
-        nb = (rd.get("balance") or 0) + int(pwr * mult)
-        nc = (rd.get("clicks") or 0) + 1; nt = (rd.get("total_earned") or 0) + int(pwr * mult)
+        nb = (rd.get("balance") or 0) + dmg
+        nc = (rd.get("clicks") or 0) + 1; nt = (rd.get("total_earned") or 0) + dmg
         c.execute(f'UPDATE players SET balance={PARAM}, clicks={PARAM}, total_earned={PARAM}, last_update={PARAM} WHERE chat_id={PARAM}', (nb, nc, nt, time.time(), chat_id))
         conn.commit()
-        res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(rd.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult}
+        res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(rd.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult, "boss_dmg": boss_dmg}
+    
+    # Проверка убийства босса
+    c.execute("SELECT hp, max_hp, level FROM boss WHERE id = 1")
+    boss_row = c.fetchone()
+    boss_hp = boss_row["hp"]
+    
+    if boss_hp <= 0:
+        reward = boss_row["max_hp"] * 2
+        new_level = boss_row["level"] + 1
+        new_max_hp = int(boss_row["max_hp"] * 1.5)
+        c.execute("UPDATE boss SET hp = ?, max_hp = ?, level = ? WHERE id = 1", (new_max_hp, new_max_hp, new_level))
+        conn.commit()
+        res["boss_killed"] = {"level": new_level, "reward": reward}
+    else:
+        res["boss"] = {"hp": boss_hp, "max_hp": boss_row["max_hp"], "level": boss_row["level"]}
+
     conn.close()
     return jsonify(res)
 
@@ -147,22 +182,22 @@ def buy_upgrade(chat_id, upgrade_id):
     conn.commit(); conn.close()
     return jsonify({"balance": nb, "click_power": npwr, "passive_income": npass, "upgrades": nu, "success": True})
 
-@app.route('/api/rebirth/<chat_id>', methods=['POST'])
-def rebirth(chat_id):
+@app.route('/api/leaderboard', methods=['GET'])
+def leaderboard():
     conn = get_db(); c = conn.cursor()
-    c.execute(f'SELECT balance, total_earned, level, prestige_points, prestige_mult, total_prestiges FROM players WHERE chat_id = {PARAM}', (chat_id,))
+    c.execute('SELECT chat_id, balance, level FROM players ORDER BY balance DESC LIMIT 50')
+    rows = c.fetchall(); conn.close()
+    return jsonify([{"rank": i+1, "chat_id": r["chat_id"], "balance": r["balance"], "level": r["level"]} for i, r in enumerate(rows)])
+
+@app.route('/api/boss_status', methods=['GET'])
+def boss_status():
+    conn = get_db(); c = conn.cursor()
+    c.execute("SELECT hp, max_hp, level, name FROM boss WHERE id = 1")
     row = c.fetchone()
-    if not row: conn.close(); return jsonify({"error": "Not found"}), 404
-    rd = dict(row)
-    lvl = rd.get("level") or 1; te = rd.get("total_earned") or 0
-    if lvl < 5 and te < 5000: conn.close(); return jsonify({"error": f"Нужен 5 ур. или 5000$ (сейчас: {lvl}/{te})"}), 400
-    pp = rd.get("prestige_points") or 0; gems = max(1, (te // 5000) - pp)
-    ng = pp + gems; nm = 1.0 + (ng * 0.05); np = (rd.get("total_prestiges") or 0) + 1
-    c.execute(f'''UPDATE players SET balance=0, clicks=0, level=1, passive_income=0, click_power=10, upgrades='{{}}',
-        total_earned=0, last_update={PARAM}, prestige_points={PARAM}, prestige_mult={PARAM}, total_prestiges={PARAM} WHERE chat_id={PARAM}''',
-        (time.time(), ng, nm, np, chat_id))
-    conn.commit(); conn.close()
-    return jsonify({"success": True, "gems_added": gems, "total_gems": ng, "multiplier": nm, "message": f"+{gems} 💎"})
+    conn.close()
+    if row:
+        return jsonify({"hp": row["hp"], "max_hp": row["max_hp"], "level": row["level"], "name": row["name"]})
+    return jsonify({"error": "No boss"}), 404
 
 @app.route('/api/quests/<chat_id>', methods=['GET'])
 def get_quests(chat_id):
@@ -190,12 +225,22 @@ def claim_quest(chat_id, quest_id):
     conn.commit(); conn.close()
     return jsonify({"success": True, "balance": nb, "reward": q["reward"]})
 
-@app.route('/api/leaderboard', methods=['GET'])
-def leaderboard():
+@app.route('/api/rebirth/<chat_id>', methods=['POST'])
+def rebirth(chat_id):
     conn = get_db(); c = conn.cursor()
-    c.execute('SELECT chat_id, balance, level FROM players ORDER BY balance DESC LIMIT 50')
-    rows = c.fetchall(); conn.close()
-    return jsonify([{"rank": i+1, "chat_id": r["chat_id"], "balance": r["balance"], "level": r["level"]} for i, r in enumerate(rows)])
+    c.execute(f'SELECT balance, total_earned, level, prestige_points, prestige_mult, total_prestiges FROM players WHERE chat_id = {PARAM}', (chat_id,))
+    row = c.fetchone()
+    if not row: conn.close(); return jsonify({"error": "Not found"}), 404
+    rd = dict(row)
+    lvl = rd.get("level") or 1; te = rd.get("total_earned") or 0
+    if lvl < 5 and te < 5000: conn.close(); return jsonify({"error": f"Нужен 5 ур. или 5000$ (сейчас: {lvl}/{te})"}), 400
+    pp = rd.get("prestige_points") or 0; gems = max(1, (te // 5000) - pp)
+    ng = pp + gems; nm = 1.0 + (ng * 0.05); np = (rd.get("total_prestiges") or 0) + 1
+    c.execute(f'''UPDATE players SET balance=0, clicks=0, level=1, passive_income=0, click_power=10, upgrades='{{}}',
+        total_earned=0, last_update={PARAM}, prestige_points={PARAM}, prestige_mult={PARAM}, total_prestiges={PARAM} WHERE chat_id={PARAM}''',
+        (time.time(), ng, nm, np, chat_id))
+    conn.commit(); conn.close()
+    return jsonify({"success": True, "gems_added": gems, "total_gems": ng, "multiplier": nm, "message": f"+{gems} 💎"})
 
 @app.route('/api/referral_link/<chat_id>', methods=['GET'])
 def get_ref_link(chat_id):
