@@ -10,14 +10,14 @@ USE_PG = bool(os.environ.get('DATABASE_URL'))
 PARAM = '%s' if USE_PG else '?'
 
 UPGRADES = {
-    "shawarma": {"name": "Ларёк", "cost": 100, "income": 2, "icon": "", "type": "passive"},
-    "coffee": {"name": "Кофе", "cost": 500, "income": 10, "icon": "", "type": "passive"},
-    "office": {"name": "Офис", "cost": 2000, "income": 50, "icon": "", "type": "passive"},
-    "factory": {"name": "Завод", "cost": 10000, "income": 250, "icon": "", "type": "passive"},
-    "bank": {"name": "Банк", "cost": 50000, "income": 1500, "icon": "🏦", "type": "passive"},
-    "mouse": {"name": "Золотая мышь", "cost": 200, "power": 5, "icon": "️", "type": "click"},
-    "ai_bot": {"name": "AI-Бот", "cost": 1000, "power": 25, "icon": "", "type": "click"},
-    "quantum": {"name": "Квантовый ПК", "cost": 100000, "power": 500, "icon": "💻", "type": "click"}
+    "shawarma": {"name": "Ларёк", "cost": 100, "income": 2, "icon": "\U0001F32F", "type": "passive"},
+    "coffee": {"name": "Кофе", "cost": 500, "income": 10, "icon": "\u2615", "type": "passive"},
+    "office": {"name": "Офис", "cost": 2000, "income": 50, "icon": "\U0001F3E2", "type": "passive"},
+    "factory": {"name": "Завод", "cost": 10000, "income": 250, "icon": "\U0001F3ED", "type": "passive"},
+    "bank": {"name": "Банк", "cost": 50000, "income": 1500, "icon": "\U0001F3E6", "type": "passive"},
+    "mouse": {"name": "Золотая мышь", "cost": 200, "power": 5, "icon": "\U0001F5B1\uFE0F", "type": "click"},
+    "ai_bot": {"name": "AI-Бот", "cost": 1000, "power": 25, "icon": "\U0001F916", "type": "click"},
+    "quantum": {"name": "Квантовый ПК", "cost": 100000, "power": 500, "icon": "\U0001F4BB", "type": "click"}
 }
 
 QUESTS = [
@@ -117,7 +117,6 @@ def click(chat_id):
         conn.commit()
         res = {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
     else:
-        # ИСПРАВЛЕНИЕ: преобразуем row в dict перед использованием .get()
         row_dict = dict(row)
         pwr = row_dict.get("click_power") or 10
         mult = float(row_dict.get("prestige_mult") or 1.0)
