@@ -9,15 +9,25 @@ CORS(app)
 USE_PG = bool(os.environ.get('DATABASE_URL'))
 PARAM = '%s' if USE_PG else '?'
 
+# === РАСШИРЕННЫЙ МАГАЗИН ===
 UPGRADES = {
+    # Пассивный доход (Бизнесы)
     "shawarma": {"name": "Ларёк", "cost": 100, "income": 2, "icon": "\U0001F32F", "type": "passive"},
     "coffee": {"name": "Кофе", "cost": 500, "income": 10, "icon": "\u2615", "type": "passive"},
-    "office": {"name": "Офис", "cost": 2000, "income": 50, "icon": "\U0001F3E2", "type": "passive"},
+    "pizza": {"name": "Пиццерия", "cost": 1500, "income": 25, "icon": "\U0001F355", "type": "passive"},
+    "office": {"name": "Офис", "cost": 3000, "income": 60, "icon": "\U0001F3E2", "type": "passive"},
     "factory": {"name": "Завод", "cost": 10000, "income": 250, "icon": "\U0001F3ED", "type": "passive"},
-    "bank": {"name": "Банк", "cost": 50000, "income": 1500, "icon": "\U0001F3E6", "type": "passive"},
+    "taxi": {"name": "Такси", "cost": 20000, "income": 450, "icon": "\U0001F695", "type": "passive"},
+    "bank": {"name": "Банк", "cost": 80000, "income": 1500, "icon": "\U0001F3E6", "type": "passive"},
+    "mall": {"name": "ТЦ", "cost": 150000, "income": 3000, "icon": "\U0001F6CD\uFE0F", "type": "passive"},
+    "tech_park": {"name": "IT Парк", "cost": 500000, "income": 8000, "icon": "\U0001F4BB", "type": "passive"},
+    "spaceport": {"name": "Космопорт", "cost": 2000000, "income": 25000, "icon": "\U0001F680", "type": "passive"},
+    
+    # Активный доход (Клик)
     "mouse": {"name": "Золотая мышь", "cost": 200, "power": 5, "icon": "\U0001F5B1\uFE0F", "type": "click"},
     "ai_bot": {"name": "AI-Бот", "cost": 1000, "power": 25, "icon": "\U0001F916", "type": "click"},
-    "quantum": {"name": "Квантовый ПК", "cost": 100000, "power": 500, "icon": "\U0001F4BB", "type": "click"}
+    "exosuit": {"name": "Экзоскелет", "cost": 5000, "power": 100, "icon": "\U0001F4AA", "type": "click"},
+    "quantum": {"name": "Квантовый палец", "cost": 50000, "power": 500, "icon": "\u26A1", "type": "click"}
 }
 
 QUESTS = [
@@ -48,15 +58,12 @@ def init_db():
         referral_earnings INTEGER DEFAULT 0, quests_data TEXT DEFAULT '{{}}',
         prestige_points INTEGER DEFAULT 0, prestige_mult REAL DEFAULT 1.0, total_prestiges INTEGER DEFAULT 0
     )''')
-    
-    # Исправлено: добавлена колонка status
     c.execute(f'''CREATE TABLE IF NOT EXISTS boss (
         id INTEGER PRIMARY KEY CHECK (id = 1), 
         name TEXT DEFAULT 'Огненный Дракон', hp INTEGER DEFAULT 10000, max_hp INTEGER DEFAULT 10000, 
         level INTEGER DEFAULT 1, status TEXT DEFAULT 'active'
     )''')
-    
-    c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level) VALUES (1, 'Огненный Дракон', 10000, 10000, 1) ON CONFLICT (id) DO NOTHING")
+    c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level, status) VALUES (1, 'Огненный Дракон', 10000, 10000, 1, 'active') ON CONFLICT (id) DO NOTHING")
     conn.commit()
     conn.close()
 
