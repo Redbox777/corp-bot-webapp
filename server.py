@@ -6,7 +6,6 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Автоматическое определение базы: PostgreSQL на Render, SQLite локально
 USE_PG = bool(os.environ.get('DATABASE_URL'))
 PARAM = '%s' if USE_PG else '?'
 
@@ -29,9 +28,9 @@ QUESTS = [
 
 def get_db():
     if USE_PG:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        return psycopg2.connect(os.environ['DATABASE_URL'], cursor_factory=RealDictCursor)
+        import psycopg
+        conn = psycopg.connect(os.environ['DATABASE_URL'], row_factory=psycopg.rows.dict_row)
+        return conn
     else:
         import sqlite3
         conn = sqlite3.connect('players.db', timeout=10)
@@ -69,9 +68,9 @@ def get_player(chat_id):
         c.execute(f'SELECT * FROM players WHERE chat_id = {PARAM}', (chat_id,))
         row = c.fetchone()
     
-    player = dict(row)
-    player["upgrades"] = json.loads(player["upgrades"] or "{}")
-    player["achievements"] = json.loads(player["achievements"] or "[]")
+    player = dict(row) if row else {}
+    player["upgrades"] = json.loads(player.get("upgrades") or "{}")
+    player["achievements"] = json.loads(player.get("achievements") or "[]")
     raw_q = player.get("quests_data")
     q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
     
@@ -87,7 +86,7 @@ def get_player(chat_id):
     c.execute(f"UPDATE players SET quests_data = {PARAM} WHERE chat_id = {PARAM}", (json.dumps(q_data), chat_id))
     
     now = time.time(); mult = float(player.get("prestige_mult") or 1.0)
-    if player["last_update"] and player["passive_income"] > 0:
+    if player.get("last_update") and player.get("passive_income", 0) > 0:
         sec = now - player["last_update"]
         if sec > 1:
             earned = int(player["passive_income"] * sec * mult)
