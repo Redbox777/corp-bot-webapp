@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-import os, time, json
-from datetime import datetime, timedelta
+import os, time, json, random
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -26,40 +26,19 @@ UPGRADES = {
     "quantum": {"name": "Квантовый палец", "cost": 50000, "power": 500, "icon": "\u26A1", "type": "click"}
 }
 
-# === СИСТЕМА ДОСТИЖЕНИЙ (50+) ===
 ACHIEVEMENTS = [
-    # Клики
-    {"id": "click_10", "name": "Первый шаг", "desc": "Сделай 10 кликов", "target": 10, "type": "clicks", "reward": 50, "rarity": "common"},
+    {"id": "click_10", "name": "Первый шаг", "desc": "10 кликов", "target": 10, "type": "clicks", "reward": 50, "rarity": "common"},
     {"id": "click_100", "name": "Кликер", "desc": "100 кликов", "target": 100, "type": "clicks", "reward": 200, "rarity": "common"},
-    {"id": "click_1000", "name": "Магнат", "desc": "1000 кликов", "target": 1000, "type": "clicks", "reward": 1000, "rarity": "uncommon"},
-    {"id": "click_10000", "name": "Титан", "desc": "10000 кликов", "target": 10000, "type": "clicks", "reward": 5000, "rarity": "rare"},
-    
-    # Заработок
-    {"id": "earn_100", "name": "Старт", "desc": "Заработай 100$", "target": 100, "type": "total_earned", "reward": 100, "rarity": "common"},
     {"id": "earn_1000", "name": "Магнат", "desc": "1000$ всего", "target": 1000, "type": "total_earned", "reward": 500, "rarity": "common"},
-    {"id": "earn_10000", "name": "Миллионер", "desc": "10000$ всего", "target": 10000, "type": "total_earned", "reward": 2500, "rarity": "uncommon"},
-    {"id": "earn_100000", "name": "Богач", "desc": "100000$ всего", "target": 100000, "type": "total_earned", "reward": 10000, "rarity": "epic"},
-    
-    # Улучшения
-    {"id": "first_business", "name": "Предприниматель", "desc": "Купи первый бизнес", "target": 1, "type": "upgrades_count", "reward": 100, "rarity": "common"},
-    {"id": "ten_upgrades", "name": "Инвестор", "desc": "Купи 10 улучшений", "target": 10, "type": "upgrades_count", "reward": 500, "rarity": "uncommon"},
-    {"id": "all_buildings", "name": "Империя", "desc": "Купи все здания", "target": 10, "type": "buildings_count", "reward": 20000, "rarity": "legendary"},
-    
-    # Перерождения
-    {"id": "rebirth_1", "name": "Новая жизнь", "desc": "1 перерождение", "target": 1, "type": "prestiges", "reward": 1000, "rarity": "uncommon"},
-    {"id": "rebirth_5", "name": "Вечный цикл", "desc": "5 перерождений", "target": 5, "type": "prestiges", "reward": 10000, "rarity": "rare"},
-    
-    # Боссы
-    {"id": "boss_1", "name": "Герой", "desc": "Победи первого босса", "target": 1, "type": "bosses_killed", "reward": 2000, "rarity": "uncommon"},
-    {"id": "boss_10", "name": "Легенда", "desc": "Победи 10 боссов", "target": 10, "type": "bosses_killed", "reward": 25000, "rarity": "epic"}
+    {"id": "first_business", "name": "Предприниматель", "desc": "Первый бизнес", "target": 1, "type": "upgrades_count", "reward": 100, "rarity": "common"},
+    {"id": "rebirth_1", "name": "Новая жизнь", "desc": "1 перерождение", "target": 1, "type": "prestiges", "reward": 1000, "rarity": "uncommon"}
 ]
 
-# === СИСТЕМА СОБЫТИЙ ===
 EVENTS = [
     {"id": "crisis", "name": "Кризис", "desc": "Доход -50%", "duration": 300, "effect": {"passive_mult": 0.5, "click_mult": 0.5}, "color": "#ef4444"},
     {"id": "boom", "name": "Бум", "desc": "Доход x2", "duration": 180, "effect": {"passive_mult": 2.0, "click_mult": 2.0}, "color": "#10b981"},
-    {"id": "investment", "name": "Инвестиции", "desc": "Бесплатные деньги!", "duration": 120, "effect": {"bonus_per_sec": 100}, "color": "#f59e0b"},
-    {"id": "competitor", "name": "Конкурент", "desc": "Клики не работают", "duration": 60, "effect": {"click_disabled": True}, "color": "#8b5cf6"}
+    {"id": "investment", "name": "Инвестиции", "desc": "Бонус $100/сек", "duration": 120, "effect": {"bonus_per_sec": 100}, "color": "#f59e0b"},
+    {"id": "competitor", "name": "Конкурент", "desc": "Клики отключены", "duration": 60, "effect": {"click_disabled": True}, "color": "#8b5cf6"}
 ]
 
 def get_db():
@@ -85,6 +64,13 @@ def init_db():
         prestige_points INTEGER DEFAULT 0, prestige_mult REAL DEFAULT 1.0, total_prestiges INTEGER DEFAULT 0,
         event_data TEXT DEFAULT '{{}}'
     )''')
+    
+    # Безопасное добавление колонки для старых игроков
+    try:
+        c.execute("ALTER TABLE players ADD COLUMN event_data TEXT DEFAULT '{}'")
+    except:
+        pass
+
     c.execute(f'''CREATE TABLE IF NOT EXISTS boss (
         id INTEGER PRIMARY KEY CHECK (id = 1), 
         name TEXT DEFAULT 'Огненный Дракон', hp INTEGER DEFAULT 10000, max_hp INTEGER DEFAULT 10000, 
@@ -118,20 +104,9 @@ def get_player(chat_id):
     raw_q = player.get("quests_data")
     q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
     
-    today = datetime.now().strftime("%Y-%m-%d")
-    for q in []: # QUESTS пока убраны
-        if q["id"] not in q_data: q_data[q["id"]] = {"progress": 0, "claimed": False, "last_date": today}
-        if q["daily"] and q_data[q["id"]]["last_date"] != today: q_data[q["id"]] = {"progress": 0, "claimed": False, "last_date": today}
-        val = {"clicks": player.get("clicks",0), "total_earned": player.get("total_earned",0),
-               "upgrades_count": sum(player.get("upgrades",{}).values()), "level": player.get("level",1),
-               "prestiges": player.get("total_prestiges",0)}.get(q["type"], 0)
-        q_data[q["id"]]["progress"] = min(val, q["target"])
-    
-    c.execute(f"UPDATE players SET quests_data = {PARAM} WHERE chat_id = {PARAM}", (json.dumps(q_data), chat_id))
-    
     now = time.time(); mult = float(player.get("prestige_mult") or 1.0)
     
-    # Применение активного события
+    # Активное событие
     event_active = False
     current_event = None
     if player["event_data"].get("end_time", 0) > now:
@@ -139,17 +114,13 @@ def get_player(chat_id):
         current_event = next((e for e in EVENTS if e["id"] == player["event_data"]["event_id"]), None)
         if current_event:
             effect = current_event["effect"]
-            if "passive_mult" in effect:
-                mult *= effect["passive_mult"]
-            if "click_mult" in effect:
-                player["click_power"] = int((player.get("click_power") or 10) * effect["click_mult"])
+            if "passive_mult" in effect: mult *= effect["passive_mult"]
+            if "click_mult" in effect: player["click_power"] = int((player.get("click_power") or 10) * effect["click_mult"])
     
     if player.get("last_update") and player.get("passive_income", 0) > 0:
         sec = now - player["last_update"]
         if sec > 1:
             earned = int(player["passive_income"] * sec * mult)
-            
-            # Бонус от события "Инвестиции"
             if event_active and current_event and "bonus_per_sec" in current_event["effect"]:
                 earned += int(current_event["effect"]["bonus_per_sec"] * sec)
             
@@ -160,9 +131,7 @@ def get_player(chat_id):
             c.execute(f'UPDATE players SET balance = {PARAM}, total_earned = {PARAM}, last_update = {PARAM} WHERE chat_id = {PARAM}', (player["balance"], player["total_earned"], now, chat_id))
     
     conn.commit(); conn.close()
-    player["quests_data"] = q_data
     player["prestige_points"] = player.get("prestige_points") or 0
-    player["prestige_mult"] = mult
     player["total_prestiges"] = player.get("total_prestiges") or 0
     return jsonify(player)
 
@@ -182,11 +151,10 @@ def click(chat_id):
             event_data = json.loads(rd.get("event_data") or "{}")
             dmg = int(pwr * mult)
         
-        # Проверка события "Конкурент"
         now = time.time()
         if event_data.get("end_time", 0) > now:
-            current_event = next((e for e in EVENTS if e["id"] == event_data["event_id"]), None)
-            if current_event and current_event["effect"].get("click_disabled"):
+            cur_ev = next((e for e in EVENTS if e["id"] == event_data["event_id"]), None)
+            if cur_ev and cur_ev["effect"].get("click_disabled"):
                 conn.close()
                 return jsonify({"error": "Конкуренты мешают кликать!"}), 400
         
@@ -209,25 +177,15 @@ def click(chat_id):
         
         c.execute("SELECT hp, max_hp, level FROM boss WHERE id = 1")
         boss_row = c.fetchone()
-        boss_hp = boss_row["hp"]
-        
-        if boss_hp <= 0:
+        if boss_row["hp"] <= 0:
             reward = boss_row["max_hp"] * 2
             new_level = boss_row["level"] + 1
             new_max_hp = int(boss_row["max_hp"] * 1.5)
             c.execute("UPDATE boss SET hp = %s, max_hp = %s, level = %s WHERE id = 1", (new_max_hp, new_max_hp, new_level))
             conn.commit()
             res["boss_killed"] = {"level": new_level, "reward": reward}
-            # Трекинг боссов для достижений
-            c.execute(f'SELECT achievements FROM players WHERE chat_id = {PARAM}', (chat_id,))
-            ach_row = c.fetchone()
-            if ach_row:
-                a_data = json.loads(ach_row["achievements"] or "[]")
-                a_data.append({"id": "boss_1", "timestamp": now})
-                c.execute(f'UPDATE players SET achievements = ? WHERE chat_id = ?', (json.dumps(a_data), chat_id))
-                conn.commit()
         else:
-            res["boss"] = {"hp": boss_hp, "max_hp": boss_row["max_hp"], "level": boss_row["level"]}
+            res["boss"] = {"hp": boss_row["hp"], "max_hp": boss_row["max_hp"], "level": boss_row["level"]}
 
         conn.close()
         return jsonify(res)
@@ -267,29 +225,22 @@ def leaderboard():
 def boss_status():
     conn = get_db(); c = conn.cursor()
     c.execute("SELECT hp, max_hp, level, name FROM boss WHERE id = 1")
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return jsonify({"hp": row["hp"], "max_hp": row["max_hp"], "level": row["level"], "name": row["name"]})
+    row = c.fetchone(); conn.close()
+    if row: return jsonify({"hp": row["hp"], "max_hp": row["max_hp"], "level": row["level"], "name": row["name"]})
     return jsonify({"error": "No boss"}), 404
 
-# === НОВЫЕ ЭНДПОИНТЫ ===
 @app.route('/api/achievements', methods=['GET'])
-def get_achievements():
-    return jsonify(ACHIEVEMENTS)
+def get_achievements(): return jsonify(ACHIEVEMENTS)
 
 @app.route('/api/events/start/<chat_id>', methods=['POST'])
 def start_event(chat_id):
-    """Запустить случайное событие для игрока"""
-    import random
     event = random.choice(EVENTS)
     end_time = time.time() + event["duration"]
-    
     conn = get_db(); c = conn.cursor()
-    c.execute(f'UPDATE players SET event_data = ? WHERE chat_id = ?', 
+    # ИСПРАВЛЕНО: использован PARAM вместо ?
+    c.execute(f'UPDATE players SET event_data = {PARAM} WHERE chat_id = {PARAM}', 
               (json.dumps({"event_id": event["id"], "end_time": end_time}), chat_id))
     conn.commit(); conn.close()
-    
     return jsonify({"success": True, "event": event, "end_time": end_time})
 
 @app.route('/api/events/status/<chat_id>', methods=['GET'])
@@ -298,15 +249,11 @@ def event_status(chat_id):
     c.execute(f'SELECT event_data FROM players WHERE chat_id = {PARAM}', (chat_id,))
     row = c.fetchone(); conn.close()
     if not row: return jsonify({"active": False})
-    
     event_data = json.loads(row["event_data"] or "{}")
     now = time.time()
-    if event_data.get("end_time", 0) <= now:
-        return jsonify({"active": False})
-    
+    if event_data.get("end_time", 0) <= now: return jsonify({"active": False})
     active_event = next((e for e in EVENTS if e["id"] == event_data["event_id"]), None)
-    if active_event:
-        return jsonify({"active": True, "event": active_event, "remaining": int(event_data["end_time"] - now)})
+    if active_event: return jsonify({"active": True, "event": active_event, "remaining": int(event_data["end_time"] - now)})
     return jsonify({"active": False})
 
 @app.route('/api/rebirth/<chat_id>', methods=['POST'])
