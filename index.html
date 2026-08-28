@@ -7,26 +7,32 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --green: #10b981; --gold: #f59e0b; --gem: #8b5cf6; --red: #ef4444; }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; overflow: hidden; }
-        #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; }
-        
-        /* Панель события */
+        #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; will-change: transform; }
         .event-banner { padding: 8px; border-radius: 10px; text-align: center; font-weight: bold; margin-bottom: 10px; display: none; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
-        
         .header { text-align: center; margin-bottom: 12px; position: relative; z-index: 10; }
         .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); position: relative; margin-bottom: 16px; }
         .gem-badge { position: absolute; top: -10px; right: -10px; background: var(--gem); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(139,92,246,0.5); display: flex; align-items: center; gap: 4px; }
         .bal-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; }
-        .bal-val { font-size: 38px; font-weight: 900; margin: 6px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .bal-val { font-size: 38px; font-weight: 900; margin: 6px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: transform 0.1s; }
         .mult-text { font-size: 12px; color: var(--gem); font-weight: bold; margin-top: 4px; }
         .lvl-bar { height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-top: 12px; overflow: hidden; }
-        .lvl-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.3s; }
+        .lvl-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.2s; }
         .lvl-text { font-size: 11px; margin-top: 4px; opacity: 0.7; }
         .click-area { display: flex; justify-content: center; margin: 10px 0; position: relative; z-index: 10; }
-        .click-btn { width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, #60a5fa, #2563eb); border: 4px solid #93c5fd; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(37,99,235,0.4); transition: transform 0.05s; cursor: pointer; position: relative; overflow: hidden; }
-        .click-btn:active { transform: scale(0.92); }
+        .click-btn { 
+            width: 150px; height: 150px; border-radius: 50%; 
+            background: radial-gradient(circle, #60a5fa, #2563eb); 
+            border: 4px solid #93c5fd; margin: 0 auto; 
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 0 30px rgba(37,99,235,0.4); 
+            transition: transform 0.05s cubic-bezier(0.4,0,0.2,1); 
+            cursor: pointer; position: relative; overflow: hidden; 
+            will-change: transform; -webkit-tap-highlight-color: transparent;
+        }
+        .click-btn:active, .click-btn.pressed { transform: scale(0.92); }
         .click-inner { text-align: center; pointer-events: none; }
         .click-icon { font-size: 50px; }
         .click-pwr { font-size: 16px; font-weight: 800; margin-top: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
@@ -35,31 +41,28 @@
         .tab.active { background: #334155; color: #fff; }
         .tab-boss { background: rgba(239, 68, 68, 0.15); color: var(--red); }
         .tab-boss.active { background: var(--red); color: #fff; }
-        .list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; overflow-y: auto; height: calc(100vh - 380px); position: relative; z-index: 10; }
+        .list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; overflow-y: auto; height: calc(100vh - 380px); position: relative; z-index: 10; padding-right: 4px; }
         .card { background: var(--card); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); }
         .card-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
         .icon { width: 42px; height: 42px; min-width: 42px; background: #334155; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
         .name { font-weight: 600; font-size: 15px; }
         .desc { font-size: 12px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .prog-wrap { width: 100%; height: 4px; background: #334155; border-radius: 2px; margin-top: 6px; overflow: hidden; }
-        .prog-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .prog-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
         .btn { border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; margin-left: 8px; transition: transform 0.1s; }
         .btn:active { transform: scale(0.95); }
         .btn-buy { background: var(--green); color: #000; }
         .btn-claim { background: var(--gold); color: #000; }
         .btn-rebirth { background: var(--gem); color: #fff; width: 100%; padding: 14px; font-size: 16px; margin-top: 10px; border-radius: 12px; }
-        .btn-event { background: var(--accent); color: #fff; width: 100%; padding: 12px; font-size: 15px; margin-top: 10px; }
-        .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-        .prestige-card, .boss-card, .achievements-card { border: 2px solid; background: rgba(255,255,255,0.1); flex-direction: column; text-align: center; gap: 12px; }
+        .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+        .prestige-card, .boss-card { border: 2px solid; background: rgba(255,255,255,0.1); flex-direction: column; text-align: center; gap: 12px; }
         .hidden { display: none; }
         @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
-        .shake { animation: shake 0.5s; }
+        .shake { animation: shake 0.4s; }
     </style>
 </head>
 <body>
     <canvas id="particles"></canvas>
-    
-    <!-- Панель события -->
     <div id="eventBanner" class="event-banner"></div>
     
     <div class="header">
@@ -97,15 +100,15 @@
             </div>
             <div class="desc" style="text-align:center; margin-top: 8px; font-size: 16px;"><span id="boss-hp-text">10000</span> HP</div>
             <div class="desc" style="text-align:center; margin-top: 8px;">Награда: <span id="boss-reward" style="color: var(--gold); font-size: 18px;">20000$</span></div>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">Бейте вместе, чтобы победить!</div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">Бейте вместе!</div>
         </div>
     </div>
     <div id="rebirth" class="list hidden">
         <div class="card prestige-card" style="border-color: var(--gem);">
             <div style="font-size: 48px;">🌀</div>
-            <div class="name" style="color: var(--gem); font-size: 18px;">Система Перерождения</div>
-            <div class="desc" style="white-space: normal;">Сбросьте прогресс, чтобы получить Кристаллы 💎.<br>Каждый кристалл дает +5% ко всему доходу навсегда!</div>
-            <div style="font-size: 12px; color: #94a3b8;">Требуется: 5 Уровень или 5000$ всего</div>
+            <div class="name" style="color: var(--gem); font-size: 18px;">Перерождение</div>
+            <div class="desc" style="white-space: normal;">Сброс прогресса ради кристаллов 💎.<br>+5% к доходу за каждый кристалл навсегда!</div>
+            <div style="font-size: 12px; color: #94a3b8;">Нужен: 5 Ур. или 5000$ всего</div>
             <button class="btn btn-rebirth" id="rebirthBtn" onclick="doRebirth()">ПЕРЕРОДИТЬСЯ</button>
         </div>
     </div>
@@ -115,262 +118,258 @@
         const tg = window.Telegram.WebApp; 
         tg.expand(); tg.ready();
         const uid = tg.initDataUnsafe?.user?.id || 'test';
-        let D = {};
-        let Boss = { hp: 10000, max_hp: 10000, level: 1 };
-        const bossIcons = ['🐉', '🦖', '', '👽', '🧛', '👑'];
-        const SERVER_URL = ''; // Оставляем пустым для Render
+        const SERVER_URL = ''; // Оставить пустым для Render
 
-        const api = async (path, method='GET') => {
+        // === КЛИЕНТСКИЙ КЭШ (Мгновенный UI) ===
+        let state = {
+            balance: 0, clicks: 0, level: 1, passive_income: 0, click_power: 10,
+            upgrades: {}, prestige_mult: 1.0, prestige_points: 0, total_prestiges: 0,
+            event_data: {}
+        };
+        let bossState = { hp: 10000, max_hp: 10000, level: 1, name: "Огненный Дракон" };
+        let isSyncing = false;
+
+        const $ = id => document.getElementById(id);
+        const api = async (path, method='GET', body=null) => {
             try {
                 const url = SERVER_URL ? `${SERVER_URL}/api${path}` : `/api${path}`;
-                const res = await fetch(url, { method });
+                const opts = { method, headers: {'Content-Type':'application/json'} };
+                if (body) opts.body = JSON.stringify(body);
+                const res = await fetch(url, opts);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 return await res.json();
             } catch (e) {
-                console.error('API Error:', e);
-                tg.showAlert('Ошибка сервера: ' + e.message);
+                console.warn('Sync error:', e);
                 return null;
             }
         };
 
-        async function load() {
-            const data = await api(`/player/${uid}`);
-            const bossData = await api('/boss_status');
-            if (data) { D = data; render(); }
-            if (bossData) { Boss = bossData; renderBoss(); }
-            updateEventBanner(); // Проверяем событие при загрузке
-        }
-
-        function render() {
-            document.getElementById('bal').innerText = D.balance + '$';
-            document.getElementById('gems').innerText = D.prestige_points || 0;
-            document.getElementById('mult').innerText = (D.prestige_mult || 1.0).toFixed(2);
-            document.getElementById('pwrTxt').innerText = `+${Math.floor((D.click_power||10)*(D.prestige_mult||1))}$/клик`;
+        // === ОПТИМИЗИРОВАННЫЙ РЕНДЕР ===
+        function renderUI() {
+            const mult = state.prestige_mult || 1.0;
+            $('bal').textContent = state.balance.toLocaleString() + '$';
+            $('gems').textContent = state.prestige_points || 0;
+            $('mult').textContent = mult.toFixed(2);
+            $('pwrTxt').textContent = `+${Math.floor((state.click_power||10)*mult)}$/клик`;
             
-            const prog = Math.min((D.clicks % 100) / 100 * 100, 100);
-            document.getElementById('lvlFill').style.width = prog + '%';
-            document.getElementById('lvlTxt').innerText = `Уровень ${D.level} (${D.clicks % 100}/100)`;
+            const prog = Math.min((state.clicks % 100) / 100 * 100, 100);
+            $('lvlFill').style.width = prog + '%';
+            $('lvlTxt').textContent = `Уровень ${state.level} (${state.clicks % 100}/100)`;
             
-            const rebBtn = document.getElementById('rebirthBtn');
-            if (D.level >= 5 || D.total_earned >= 5000) {
-                rebBtn.disabled = false;
-                rebBtn.innerText = "ПЕРЕРОДИТЬСЯ (Сброс)";
+            const rebBtn = $('rebirthBtn');
+            if (state.level >= 5 || state.total_earned >= 5000) {
+                rebBtn.disabled = false; rebBtn.textContent = "ПЕРЕРОДИТЬСЯ (Сброс)";
             } else {
-                rebBtn.disabled = true;
-                rebBtn.innerText = "Недоступно (Нужен 5 Ур.)";
+                rebBtn.disabled = true; rebBtn.textContent = "Недоступно (Нужен 5 Ур.)";
             }
         }
 
         function renderBoss() {
-            document.getElementById('boss-name').innerText = Boss.name;
-            document.getElementById('boss-lvl').innerText = Boss.level;
-            document.getElementById('boss-hp-text').innerText = Math.floor(Boss.hp).toLocaleString();
-            document.getElementById('boss-reward').innerText = Math.floor(Boss.max_hp * 2).toLocaleString() + '$';
-            
-            const pct = Math.max(0, (Boss.hp / Boss.max_hp) * 100);
-            document.getElementById('boss-hp').style.width = pct + '%';
-            
-            const iconIndex = (Boss.level - 1) % bossIcons.length;
-            document.getElementById('boss-icon').innerText = bossIcons[iconIndex];
+            $('boss-name').textContent = bossState.name;
+            $('boss-lvl').textContent = bossState.level;
+            $('boss-hp-text').textContent = Math.floor(bossState.hp).toLocaleString();
+            $('boss-reward').textContent = Math.floor(bossState.max_hp * 2).toLocaleString() + '$';
+            $('boss-hp').style.width = Math.max(0, (bossState.hp / bossState.max_hp) * 100) + '%';
         }
 
-        // --- СИСТЕМА СОБЫТИЙ ---
-        async function updateEventBanner() {
-            const eventData = await api(`/events/status/${uid}`);
-            const banner = document.getElementById('eventBanner');
-            if (eventData && eventData.active) {
-                banner.style.display = 'block';
-                banner.style.backgroundColor = eventData.event.color + '20';
-                banner.style.borderColor = eventData.event.color;
-                banner.innerHTML = `
-                    <div style="font-size: 14px;">${eventData.event.name}</div>
-                    <div>${eventData.event.desc} | Осталось: ${eventData.remaining}с</div>
-                `;
-                setTimeout(updateEventBanner, 1000); // Обновляем таймер каждую секунду
-            } else {
-                banner.style.display = 'none';
+        // === ФОНОВАЯ СИНХРОНИЗАЦИЯ ===
+        async function syncState() {
+            if (isSyncing) return;
+            isSyncing = true;
+            try {
+                const data = await api(`/player/${uid}`);
+                if (data) {
+                    Object.assign(state, data);
+                    renderUI();
+                }
+                const bossData = await api('/boss_status');
+                if (bossData) { Object.assign(bossState, bossData); renderBoss(); }
+                checkEvent();
+            } finally {
+                isSyncing = false;
             }
         }
 
-        async function triggerRandomEvent() {
-            const res = await api(`/events/start/${uid}`, 'POST');
-            if (res && res.success) {
-                tg.showAlert(`Новое событие: ${res.event.name}!`);
-                updateEventBanner();
-            }
+        // === МГНОВЕННЫЙ КЛИК (Оптимистичный) ===
+        const btn = $('cBtn');
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(e); }, {passive:false});
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); handleTap(e); });
+
+        async function handleTap(e) {
+            // 1. Визуальная отдача (0мс)
+            btn.classList.add('pressed');
+            setTimeout(() => btn.classList.remove('pressed'), 80);
+            
+            // 2. Хаптик (мгновенно)
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            if (navigator.vibrate) navigator.vibrate(15);
+
+            // 3. Оптимистичное обновление состояния
+            const dmg = Math.floor((state.click_power||10) * (state.prestige_mult||1));
+            state.balance += dmg;
+            state.clicks++;
+            state.level = Math.floor(state.clicks / 100) + 1;
+            state.total_earned = (state.total_earned||0) + dmg;
+            renderUI();
+
+            // 4. Частицы (GPU-ускоренные)
+            spawnParticles(e.clientX || e.touches[0].clientX, e.clientY || e.touches[0].clientY, `+${dmg}$`, '#10b981');
+
+            // 5. Тряска при мощном клике
+            if (dmg > 1000) { document.body.classList.add('shake'); setTimeout(()=>document.body.classList.remove('shake'), 400); }
+
+            // 6. Фоновая отправка на сервер (не блокирует UI)
+            api(`/click/${uid}`, 'POST').then(res => {
+                if (res && !res.error) {
+                    if (res.boss_dmg) {
+                        bossState.hp = Math.max(0, bossState.hp - res.boss_dmg);
+                        renderBoss();
+                        if (res.boss_killed) {
+                            state.balance += res.boss_killed.reward;
+                            tg.showAlert(` Босс повержен! +${res.boss_killed.reward}$`);
+                            for(let i=0;i<12;i++) setTimeout(()=>spawnParticles(Math.random()*innerWidth, Math.random()*innerHeight, '', '#f59e0b'), i*60);
+                        }
+                    }
+                    // Тихая синхронизация (исправляет дрифт, если был)
+                    Object.assign(state, res);
+                    renderUI();
+                }
+            });
         }
 
-        // --- ЧАСТИЦЫ ---
-        const canvas = document.getElementById('particles');
+        // === GPU-ЧАСТИЦЫ ===
+        const canvas = $('particles');
         const ctx = canvas.getContext('2d');
         let particles = [];
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+        window.addEventListener('resize', resize); resize();
 
-        function spawnParticles(x, y, text, color = '#fff') {
-            for (let i = 0; i < 8; i++) {
-                particles.push({ x, y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12 - 5, life: 1.0, color, text: i === 0 ? text : null, size: i === 0 ? 22 : Math.random() * 6 + 2 });
+        function spawnParticles(x, y, text, color) {
+            for (let i=0; i<6; i++) {
+                particles.push({ x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10-4, life:1, color, text: i===0?text:null, size: i===0?20: Math.random()*4+2 });
             }
         }
-
-        function updateParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = particles.length - 1; i >= 0; i--) {
+        function loop() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            for (let i=particles.length-1; i>=0; i--) {
                 const p = particles[i];
-                p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life -= 0.035;
+                p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.life -= 0.04;
                 ctx.globalAlpha = p.life;
                 if (p.text) {
-                    ctx.fillStyle = p.color;
-                    ctx.font = `bold ${p.size}px sans-serif`;
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 2;
-                    ctx.strokeText(p.text, p.x, p.y);
-                    ctx.fillText(p.text, p.x, p.y);
+                    ctx.fillStyle=p.color; ctx.font=`bold ${p.size}px sans-serif`; ctx.strokeStyle='black'; ctx.lineWidth=2;
+                    ctx.strokeText(p.text, p.x, p.y); ctx.fillText(p.text, p.x, p.y);
                 } else {
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
                 }
-                ctx.globalAlpha = 1;
-                if (p.life <= 0) particles.splice(i, 1);
+                ctx.globalAlpha=1;
+                if(p.life<=0) particles.splice(i,1);
             }
-            requestAnimationFrame(updateParticles);
+            requestAnimationFrame(loop);
         }
-        updateParticles();
+        loop();
 
-        document.getElementById('cBtn').addEventListener('click', async (e) => {
-            const btn = document.getElementById('cBtn');
-            btn.style.transform = 'scale(0.92)';
-            setTimeout(() => btn.style.transform = 'scale(1)', 100);
-            
-            if ((D.click_power||10) * (D.prestige_mult||1) > 1000) {
-                document.body.classList.add('shake');
-                setTimeout(() => document.body.classList.remove('shake'), 500);
-            }
-
-            const res = await api(`/click/${uid}`, 'POST');
-            if (res && !res.error) {
-                D = { ...D, ...res };
-                if (res.boss_dmg) {
-                    const rect = btn.getBoundingClientRect();
-                    spawnParticles(rect.left + rect.width/2, rect.top, `-${res.boss_dmg}`, '#ef4444');
-                    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
-                } else {
-                    const rect = btn.getBoundingClientRect();
-                    spawnParticles(rect.left + rect.width/2, rect.top, `+${D.click_power * (D.prestige_mult||1)}$`, '#10b981');
-                    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-                }
-
-                if (res.boss_killed) {
-                    D.balance += res.boss_killed.reward;
-                    tg.showAlert(` Босс повержен! +${res.boss_killed.reward}$`);
-                    for(let k=0; k<15; k++) setTimeout(() => spawnParticles(Math.random()*window.innerWidth, Math.random()*window.innerHeight, '', '#f59e0b'), k*80);
-                    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-                }
-                
-                render();
-                renderBoss();
-            } else if (res && res.error) {
-                tg.showAlert('Ошибка клика: ' + res.error);
-            }
-        });
-
+        // === ВКЛАДКИ И МАГАЗИН ===
         let currentTab = 'upgrades';
-        function switchTab(tabName, btnElement) {
-            currentTab = tabName;
-            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-            if(btnElement) btnElement.classList.add('active');
-            document.querySelectorAll('.list').forEach(el => el.classList.add('hidden'));
-            document.getElementById(tabName).classList.remove('hidden');
-            updateCurrentTab();
-        }
-        function updateCurrentTab() {
-            if (currentTab === 'upgrades') renderShop();
-            if (currentTab === 'achievements') renderAchievements();
-            if (currentTab === 'top') renderTop();
+        function switchTab(name, el) {
+            currentTab = name;
+            document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelectorAll('.list').forEach(l=>l.classList.add('hidden'));
+            $(name).classList.remove('hidden');
+            if(name==='upgrades') renderShop();
+            if(name==='achievements') renderAchievements();
+            if(name==='top') renderTop();
         }
 
-        // --- МАГАЗИН ---
         async function renderShop() {
             const shop = await api('/shop');
-            if (!shop) return;
-            const el = document.getElementById('upgrades');
-            let h = '';
-            for(let [k,v] of Object.entries(shop)) {
-                const cnt = (D.upgrades||{})[k] || 0;
+            if(!shop) return;
+            let h='';
+            for(const [k,v] of Object.entries(shop)) {
+                const cnt = (state.upgrades||{})[k]||0;
                 const price = Math.floor(v.cost * Math.pow(1.15, cnt));
                 const type = v.type==='click' ? `+${v.power} клик` : `+${v.income}/сек`;
-                h += `<div class="card"><div class="card-left"><div class="icon">${v.icon || '📦'}</div><div style="min-width:0"><div class="name">${v.name}</div><div class="desc">${type} | Куплено: ${cnt}</div></div></div><button class="btn btn-buy" onclick="buy('${k}',${price})" ${D.balance<price?'disabled':''}>${price}$</button></div>`;
+                h += `<div class="card"><div class="card-left"><div class="icon">${v.icon||'📦'}</div><div style="min-width:0"><div class="name">${v.name}</div><div class="desc">${type} | ${cnt} шт.</div></div></div><button class="btn btn-buy" onclick="buy('${k}',${price})" ${state.balance<price?'disabled':''}>${price}$</button></div>`;
             }
-            el.innerHTML = h;
-        }
-        async function buy(id, price) {
-            if(D.balance < price) return;
-            const r = await api(`/buy/${uid}/${id}`, 'POST');
-            if(r && r.success) { D={...D,...r}; render(); renderShop(); } 
-            else if(r) tg.showAlert(r.error);
+            $('upgrades').innerHTML = h;
         }
 
-        // --- ДОСТИЖЕНИЯ ---
+        async function buy(id, price) {
+            if(state.balance < price) return;
+            // Оптимистично списываем
+            state.balance -= price;
+            renderUI();
+            
+            const res = await api(`/buy/${uid}/${id}`, 'POST');
+            if(res && res.success) {
+                Object.assign(state, res);
+                renderUI(); renderShop();
+                if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            } else {
+                // Откат при ошибке
+                state.balance += price;
+                renderUI();
+                if(res) tg.showAlert(res.error);
+            }
+        }
+
         async function renderAchievements() {
             const achs = await api('/achievements');
             if(!achs) return;
-            const el = document.getElementById('achievements');
-            let h = '';
+            let h='';
+            const cols = {common:'#94a3b8', uncommon:'#10b981', rare:'#3b82f6', epic:'#8b5cf6', legendary:'#f59e0b'};
             achs.forEach(a => {
-                const rarityColors = {"common": "#94a3b8", "uncommon": "#10b981", "rare": "#3b82f6", "epic": "#8b5cf6", "legendary": "#f59e0b"};
-                h += `<div class="card achievements-card" style="border-color: ${rarityColors[a.rarity]};">
-                    <div class="card-left">
-                        <div class="icon" style="background:${rarityColors[a.rarity]}20; color:${rarityColors[a.rarity]};">${a.rarity === 'legendary' ? '👑' : '🏆'}</div>
-                        <div style="min-width:0; flex:1;">
-                            <div class="name" style="color:${rarityColors[a.rarity]};">${a.name}</div>
-                            <div class="desc">${a.desc}</div>
-                            <div class="prog-wrap"><div class="prog-fill" style="width:0%; background:${rarityColors[a.rarity]};"></div></div>
-                            <div class="desc" style="margin-top:4px;">Награда: ${a.reward}$</div>
-                        </div>
-                    </div>
-                    <div style="font-size:24px; color:${rarityColors[a.rarity]};">🔒</div>
+                h += `<div class="card" style="border-color:${cols[a.rarity]}; flex-direction:column; gap:8px;">
+                    <div class="card-left"><div class="icon" style="background:${cols[a.rarity]}20;color:${cols[a.rarity]};">🏆</div>
+                    <div style="min-width:0;flex:1;"><div class="name" style="color:${cols[a.rarity]};">${a.name}</div>
+                    <div class="desc">${a.desc}</div>
+                    <div class="prog-wrap"><div class="prog-fill" style="width:0%;background:${cols[a.rarity]};"></div></div>
+                    <div class="desc" style="margin-top:4px;">Награда: ${a.reward}$</div></div></div>
                 </div>`;
             });
-            el.innerHTML = h;
+            $('achievements').innerHTML = h;
         }
 
-        // --- ПЕРЕРОЖДЕНИЕ ---
         async function doRebirth() {
-            tg.showConfirm("Сброс прогресса ради кристаллов?", async (ok) => {
-                if(ok) {
-                    const r = await api(`/rebirth/${uid}`, 'POST');
-                    if(r && r.success) {
-                        tg.showAlert(r.message);
-                        D = {}; 
-                        await load();
-                        switchTab('upgrades', document.querySelector('.tab.active'));
-                    } else if(r) tg.showAlert(r.error);
-                }
+            tg.showConfirm("Сброс прогресса ради кристаллов?", async ok => {
+                if(!ok) return;
+                const res = await api(`/rebirth/${uid}`, 'POST');
+                if(res && res.success) {
+                    tg.showAlert(res.message);
+                    state = { balance:0, clicks:0, level:1, passive_income:0, click_power:10, upgrades:{}, prestige_mult:1, prestige_points:0, total_prestiges:0, event_data:{} };
+                    await syncState();
+                    switchTab('upgrades', document.querySelector('.tab'));
+                } else if(res) tg.showAlert(res.error);
             });
         }
 
-        // --- ТОП ---
         async function renderTop() {
             const top = await api('/leaderboard');
             if(!top) return;
-            const el = document.getElementById('top');
-            if (top.length === 0) { el.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b">Пока пусто...</div>'; return; }
-            el.innerHTML = top.map((p,i) => `<div class="card" style="${p.chat_id==uid?'border:1px solid var(--accent)':''}"><div class="card-left"><div class="icon" style="background:${i<3?'var(--gold)':'#334155'};color:${i<3?'#000':'#fff'}">#${p.rank}</div><div class="name">Игрок #${p.chat_id}</div></div><div style="font-weight:700; color: var(--green)">${p.balance}$</div></div>`).join('');
+            $('top').innerHTML = top.length ? top.map((p,i)=>`<div class="card" style="${p.chat_id==uid?'border:1px solid var(--accent)':''}"><div class="card-left"><div class="icon" style="background:${i<3?'var(--gold)':'#334155'};color:${i<3?'#000':'#fff'}">#${p.rank}</div><div class="name">Игрок #${p.chat_id}</div></div><div style="font-weight:700;color:var(--green)">${p.balance}$</div></div>`).join('') : '<div style="text-align:center;padding:20px;color:#64748b">Пока пусто</div>';
         }
 
-        load();
-        setInterval(()=>{ 
-            if(D.passive_income > 0){
-                const dmg = Math.floor((D.passive_income * (D.prestige_mult||1)) * 0.1);
-                Boss.hp -= dmg;
-                if(Boss.hp < 0) Boss.hp = 0;
-                renderBoss();
-                D.balance += Math.floor(D.passive_income * (D.prestige_mult||1)); 
-                render();
-            } 
+        async function checkEvent() {
+            const ev = await api(`/events/status/${uid}`);
+            const banner = $('eventBanner');
+            if(ev && ev.active) {
+                banner.style.display='block';
+                banner.style.backgroundColor=ev.event.color+'20';
+                banner.style.borderColor=ev.event.color;
+                banner.innerHTML=`<div style="font-size:14px;">${ev.event.name}</div><div>${ev.event.desc} | ${ev.remaining}с</div>`;
+                setTimeout(checkEvent, 1000);
+            } else banner.style.display='none';
+        }
+
+        // === ЗАПУСК ===
+        syncState();
+        setInterval(()=>{
+            if(state.passive_income > 0) {
+                const add = Math.floor(state.passive_income * (state.prestige_mult||1));
+                state.balance += add;
+                state.total_earned = (state.total_earned||0) + add;
+                renderUI();
+            }
         }, 1000);
     </script>
 </body>
