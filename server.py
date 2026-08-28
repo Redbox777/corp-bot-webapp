@@ -56,7 +56,7 @@ def init_db():
         level INTEGER DEFAULT 1, status TEXT DEFAULT 'active'
     )''')
     # Вставляем босса если нет
-    c.execute(f"INSERT INTO boss ON CONFLICT (id) DO NOTHING (id, name, hp, max_hp, level) VALUES (1, 'Меха-Голем', 10000, 10000, 1)")
+    c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level) VALUES (1, 'Меха-Голем', 10000, 10000, 1) ON CONFLICT (id) DO NOTHING")
     conn.commit()
     conn.close()
 
