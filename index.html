@@ -10,7 +10,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; padding: 16px; }
         .header { text-align: center; margin-bottom: 12px; }
-        .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); position: relative; }
+        .balance-box { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 24px rgba(59,130,246,0.3); position: relative; margin-bottom: 16px; }
         .gem-badge { position: absolute; top: -10px; right: -10px; background: var(--gem); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(139,92,246,0.5); display: flex; align-items: center; gap: 4px; }
         .bal-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; }
         .bal-val { font-size: 38px; font-weight: 900; margin: 6px 0; }
@@ -24,24 +24,23 @@
         .click-icon { font-size: 40px; }
         .click-pwr { font-size: 14px; font-weight: 700; margin-top: 4px; }
         .tabs { display: flex; background: var(--card); border-radius: 14px; padding: 4px; margin: 16px 0; overflow-x: auto; }
-        .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; border-radius: 10px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+        .tab { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; border-radius: 10px; font-weight: 600; font-size: 13px; white-space: nowrap; text-align: center; }
         .tab.active { background: #334155; color: #fff; }
-        
-        /* ИСПРАВЛЕНИЕ: отступы между карточками */
-        .list { display: flex; flex-direction: column; gap: 12px; }
+        .list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
         .card { background: var(--card); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: center; }
-        .card-left { display: flex; align-items: center; gap: 12px; flex: 1; }
-        .icon { width: 40px; height: 40px; background: #334155; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .card-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+        .icon { width: 42px; height: 42px; min-width: 42px; background: #334155; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
         .name { font-weight: 600; font-size: 15px; }
-        .desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+        .desc { font-size: 12px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .prog-wrap { width: 100%; height: 4px; background: #334155; border-radius: 2px; margin-top: 6px; overflow: hidden; }
         .prog-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
-        .btn { border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+        .btn { border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; margin-left: 8px; }
         .btn-buy { background: var(--green); color: #000; }
         .btn-claim { background: var(--gold); color: #000; }
-        .btn-rebirth { background: var(--gem); color: #fff; width: 100%; padding: 12px; font-size: 15px; margin-top: 10px; }
+        .btn-rebirth { background: var(--gem); color: #fff; width: 100%; padding: 14px; font-size: 16px; margin-top: 10px; border-radius: 12px; }
         .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-        .prestige-card { border: 2px solid var(--gem); background: rgba(139,92,246,0.1); }
+        .prestige-card { border: 2px solid var(--gem); background: rgba(139,92,246,0.1); flex-direction: column; text-align: center; gap: 12px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -55,35 +54,30 @@
             <div class="lvl-text" id="lvlTxt">Уровень 1 (0/100)</div>
         </div>
     </div>
-
     <button class="click-btn" id="cBtn"><div class="click-inner"><div class="click-icon">👆</div><div class="click-pwr" id="pwrTxt">+10$/клик</div></div></button>
-
     <div class="tabs">
-        <button class="tab active" onclick="tab('upgrades')">🛒 Магазин</button>
-        <button class="tab" onclick="tab('quests')">📋 Квесты</button>
-        <button class="tab" onclick="tab('rebirth')">💎 Перерождение</button>
-        <button class="tab" onclick="tab('top')"> Топ</button>
+        <button class="tab active" onclick="switchTab('upgrades', this)">🛒 Магазин</button>
+        <button class="tab" onclick="switchTab('quests', this)">📋 Квесты</button>
+        <button class="tab" onclick="switchTab('rebirth', this)">💎 Перерождение</button>
+        <button class="tab" onclick="switchTab('top', this)">🏆 Топ</button>
     </div>
-
     <div id="upgrades" class="list"></div>
-    <div id="quests" class="list" style="display:none"></div>
-    <div id="rebirth" class="list" style="display:none">
-        <div class="card prestige-card" style="flex-direction: column; text-align: center; gap: 12px;">
-            <div style="font-size: 40px;">🌀</div>
-            <div class="name" style="color: var(--gem);">Система Перерождения</div>
-            <div class="desc">Сбросьте прогресс, чтобы получить Кристаллы 💎.<br>Каждый кристалл дает +5% ко всему доходу навсегда!</div>
-            <div style="font-size: 12px; opacity: 0.7;">Требуется: 5 Уровень или 5000$ всего</div>
+    <div id="quests" class="list hidden"></div>
+    <div id="rebirth" class="list hidden">
+        <div class="card prestige-card">
+            <div style="font-size: 48px;">🌀</div>
+            <div class="name" style="color: var(--gem); font-size: 18px;">Система Перерождения</div>
+            <div class="desc" style="white-space: normal;">Сбросьте прогресс, чтобы получить Кристаллы 💎.<br>Каждый кристалл дает +5% ко всему доходу навсегда!</div>
+            <div style="font-size: 12px; color: #94a3b8;">Требуется: 5 Уровень или 5000$ всего</div>
             <button class="btn btn-rebirth" id="rebirthBtn" onclick="doRebirth()">ПЕРЕРОДИТЬСЯ</button>
         </div>
     </div>
-    <div id="top" class="list" style="display:none"></div>
-
+    <div id="top" class="list hidden"></div>
     <script>
         const tg = window.Telegram.WebApp; 
         tg.expand(); tg.ready();
         const uid = tg.initDataUnsafe?.user?.id || 'test';
         let D = {};
-        
         const api = async (path, method='GET') => {
             try {
                 const res = await fetch(`/api${path}`, { method });
@@ -91,26 +85,21 @@
                 return await res.json();
             } catch (e) {
                 console.error('API Error:', e);
-                tg.showAlert('Ошибка соединения с сервером');
                 return null;
             }
         };
-
         async function load() {
             const data = await api(`/player/${uid}`);
             if (data) { D = data; render(); }
         }
-
         function render() {
             document.getElementById('bal').innerText = D.balance + '$';
             document.getElementById('gems').innerText = D.prestige_points || 0;
             document.getElementById('mult').innerText = (D.prestige_mult || 1.0).toFixed(2);
             document.getElementById('pwrTxt').innerText = `+${Math.floor((D.click_power||10)*(D.prestige_mult||1))}$/клик`;
-            
             const prog = Math.min((D.clicks % 100) / 100 * 100, 100);
             document.getElementById('lvlFill').style.width = prog + '%';
             document.getElementById('lvlTxt').innerText = `Уровень ${D.level} (${D.clicks % 100}/100)`;
-            
             const rebBtn = document.getElementById('rebirthBtn');
             if (D.level >= 5 || D.total_earned >= 5000) {
                 rebBtn.disabled = false;
@@ -119,22 +108,33 @@
                 rebBtn.disabled = true;
                 rebBtn.innerText = "Недоступно (Нужен 5 Ур.)";
             }
-            renderShop();
         }
-
         document.getElementById('cBtn').addEventListener('click', async () => {
             const btn = document.getElementById('cBtn');
             btn.style.transform = 'scale(0.9)';
             setTimeout(() => btn.style.transform = 'scale(1)', 100);
-            
             const res = await api(`/click/${uid}`, 'POST');
             if (res) {
                 D = { ...D, ...res };
                 render();
+                updateCurrentTab();
                 if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             }
         });
-
+        let currentTab = 'upgrades';
+        function switchTab(tabName, btnElement) {
+            currentTab = tabName;
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+            document.querySelectorAll('.list').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabName).classList.remove('hidden');
+            updateCurrentTab();
+        }
+        function updateCurrentTab() {
+            if (currentTab === 'upgrades') renderShop();
+            if (currentTab === 'quests') renderQuests();
+            if (currentTab === 'top') renderTop();
+        }
         async function renderShop() {
             const shop = await api('/shop');
             if (!shop) return;
@@ -144,24 +144,16 @@
                 const cnt = (D.upgrades||{})[k] || 0;
                 const price = Math.floor(v.cost * Math.pow(1.15, cnt));
                 const type = v.type==='click' ? `+${v.power} клик` : `+${v.income}/сек`;
-                h += `<div class="card">
-                    <div class="card-left">
-                        <div class="icon">${v.icon}</div>
-                        <div><div class="name">${v.name}</div><div class="desc">${type} | Куплено: ${cnt}</div></div>
-                    </div>
-                    <button class="btn btn-buy" onclick="buy('${k}',${price})" ${D.balance<price?'disabled':''}>${price}$</button>
-                </div>`;
+                h += `<div class="card"><div class="card-left"><div class="icon">${v.icon || '📦'}</div><div style="min-width:0"><div class="name">${v.name}</div><div class="desc">${type} | Куплено: ${cnt}</div></div></div><button class="btn btn-buy" onclick="buy('${k}',${price})" ${D.balance<price?'disabled':''}>${price}$</button></div>`;
             }
             el.innerHTML = h;
         }
-
         async function buy(id, price) {
             if(D.balance < price) return;
             const r = await api(`/buy/${uid}/${id}`, 'POST');
-            if(r && r.success) { D={...D,...r}; render(); } 
+            if(r && r.success) { D={...D,...r}; render(); renderShop(); } 
             else if(r) tg.showAlert(r.error);
         }
-
         async function renderQuests() {
             const qs = await api(`/quests/${uid}`);
             if(!qs) return;
@@ -170,70 +162,46 @@
             qs.forEach(q => {
                 const pct = Math.min(q.progress / q.target * 100, 100);
                 const ready = q.progress >= q.target && !q.claimed;
-                h += `<div class="card">
-                    <div class="card-left">
-                        <div class="icon">${q.daily?'':''}</div>
-                        <div style="flex:1">
-                            <div class="name">${q.name}</div>
-                            <div class="desc">${q.desc}</div>
-                            <div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div>
-                            <div class="desc">${q.progress}/${q.target}</div>
-                        </div>
-                    </div>
-                    <button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed?'✅':'🎁 '+q.reward+'$'}</button>
-                </div>`;
+                const icon = q.daily ? '📅' : '🏆'; 
+                h += `<div class="card"><div class="card-left"><div class="icon">${icon}</div><div style="min-width:0; flex:1;"><div class="name">${q.name}</div><div class="desc">${q.desc}</div><div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div><div class="desc" style="margin-top:4px">${q.progress}/${q.target}</div></div></div><button class="btn ${q.claimed?'btn-buy':'btn-claim'}" onclick="claim('${q.id}')" ${!ready?'disabled':''}>${q.claimed ? '✅' : ''}</button></div>`;
             });
             el.innerHTML = h;
         }
-
         async function claim(id) {
             const r = await api(`/claim_quest/${uid}/${id}`, 'POST');
             if(r && r.success) { 
                 D.balance = r.balance; 
                 tg.showAlert(`Получено ${r.reward}$!`); 
                 render(); renderQuests(); 
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             } else if(r) tg.showAlert(r.error);
         }
-
         async function doRebirth() {
-            tg.showConfirm("Вы уверены? Весь прогресс (деньги, здания) будет сброшен! Вы получите Кристаллы 💎", async (ok) => {
+            tg.showConfirm("Вы уверены? Весь прогресс (деньги, здания) будет сброшен! Вы получите Кристаллы ", async (ok) => {
                 if(ok) {
                     const r = await api(`/rebirth/${uid}`, 'POST');
                     if(r && r.success) {
                         tg.showAlert(r.message);
                         load();
+                        switchTab('upgrades', document.querySelector('.tab.active'));
                     } else if(r) tg.showAlert(r.error);
                 }
             });
         }
-
         async function renderTop() {
             const top = await api('/leaderboard');
             if(!top) return;
-            document.getElementById('top').innerHTML = top.map((p,i) => `
-                <div class="card" style="${p.chat_id==uid?'border:1px solid var(--accent)':''}">
-                    <div class="card-left">
-                        <div class="icon" style="background:${i<3?'var(--gold)':'#334155'};color:${i<3?'#000':'#fff'}">#${p.rank}</div>
-                        <div class="name">Игрок #${p.chat_id}</div>
-                    </div>
-                    <div style="font-weight:700">${p.balance}$</div>
-                </div>
-            `).join('');
+            const el = document.getElementById('top');
+            if (top.length === 0) {
+                el.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b">Пока пусто... Будь первым!</div>';
+                return;
+            }
+            el.innerHTML = top.map((p,i) => `<div class="card" style="${p.chat_id==uid?'border:1px solid var(--accent)':''}"><div class="card-left"><div class="icon" style="background:${i<3?'var(--gold)':'#334155'};color:${i<3?'#000':'#fff'}">#${p.rank}</div><div class="name">Игрок #${p.chat_id}</div></div><div style="font-weight:700; color: var(--green)">${p.balance}$</div></div>`).join('');
         }
-
-        function tab(t) {
-            document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-            event.target.classList.add('active');
-            ['upgrades','quests','rebirth','top'].forEach(id=>document.getElementById(id).style.display='none');
-            document.getElementById(t).style.display='block';
-            if(t==='quests') renderQuests();
-            if(t==='top') renderTop();
-        }
-
         load();
         setInterval(()=>{ 
-            if(D.passive_income>0){
-                D.balance += Math.floor(D.passive_income*(D.prestige_mult||1)); 
+            if(D.passive_income > 0){
+                D.balance += Math.floor(D.passive_income * (D.prestige_mult||1)); 
                 render();
             } 
         }, 1000);
