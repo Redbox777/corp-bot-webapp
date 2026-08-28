@@ -65,18 +65,22 @@ def init_db():
         event_data TEXT DEFAULT '{{}}'
     )''')
     
-    # Безопасное добавление колонки для старых игроков
-    try:
-        c.execute("ALTER TABLE players ADD COLUMN event_data TEXT DEFAULT '{}'")
-    except:
-        pass
-
+    # ИСПРАВЛЕНО: убран CHECK для совместимости с PostgreSQL
     c.execute(f'''CREATE TABLE IF NOT EXISTS boss (
-        id INTEGER PRIMARY KEY CHECK (id = 1), 
-        name TEXT DEFAULT 'Огненный Дракон', hp INTEGER DEFAULT 10000, max_hp INTEGER DEFAULT 10000, 
-        level INTEGER DEFAULT 1, status TEXT DEFAULT 'active'
+        id INTEGER PRIMARY KEY, 
+        name TEXT DEFAULT 'Огненный Дракон', 
+        hp INTEGER DEFAULT 10000, 
+        max_hp INTEGER DEFAULT 10000, 
+        level INTEGER DEFAULT 1, 
+        status TEXT DEFAULT 'active'
     )''')
-    c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level, status) VALUES (1, 'Огненный Дракон', 10000, 10000, 1, 'active') ON CONFLICT (id) DO NOTHING")
+    
+    # Вставляем босса если нет
+    try:
+        c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level, status) VALUES (1, 'Огненный Дракон', 10000, 10000, 1, 'active') ON CONFLICT (id) DO NOTHING")
+    except:
+        pass  # Игнорируем если уже существует
+    
     conn.commit()
     conn.close()
 
@@ -237,7 +241,6 @@ def start_event(chat_id):
     event = random.choice(EVENTS)
     end_time = time.time() + event["duration"]
     conn = get_db(); c = conn.cursor()
-    # ИСПРАВЛЕНО: использован PARAM вместо ?
     c.execute(f'UPDATE players SET event_data = {PARAM} WHERE chat_id = {PARAM}', 
               (json.dumps({"event_id": event["id"], "end_time": end_time}), chat_id))
     conn.commit(); conn.close()
