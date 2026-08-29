@@ -29,9 +29,13 @@ UPGRADES = {
 ACHIEVEMENTS = [
     {"id": "click_10", "name": "Первый шаг", "desc": "10 кликов", "target": 10, "type": "clicks", "reward": 50, "rarity": "common"},
     {"id": "click_100", "name": "Кликер", "desc": "100 кликов", "target": 100, "type": "clicks", "reward": 200, "rarity": "common"},
+    {"id": "click_1000", "name": "Тап-мастер", "desc": "1000 кликов", "target": 1000, "type": "clicks", "reward": 1000, "rarity": "uncommon"},
+    {"id": "earn_100", "name": "Старт", "desc": "100$ всего", "target": 100, "type": "total_earned", "reward": 100, "rarity": "common"},
     {"id": "earn_1000", "name": "Магнат", "desc": "1000$ всего", "target": 1000, "type": "total_earned", "reward": 500, "rarity": "common"},
+    {"id": "earn_10000", "name": "Богач", "desc": "10000$ всего", "target": 10000, "type": "total_earned", "reward": 2500, "rarity": "uncommon"},
     {"id": "first_business", "name": "Предприниматель", "desc": "Первый бизнес", "target": 1, "type": "upgrades_count", "reward": 100, "rarity": "common"},
-    {"id": "rebirth_1", "name": "Новая жизнь", "desc": "1 перерождение", "target": 1, "type": "prestiges", "reward": 1000, "rarity": "uncommon"}
+    {"id": "ten_upgrades", "name": "Инвестор", "desc": "10 улучшений", "target": 10, "type": "upgrades_count", "reward": 500, "rarity": "uncommon"},
+    {"id": "rebirth_1", "name": "Новая жизнь", "desc": "1 перерождение", "target": 1, "type": "prestiges", "reward": 1000, "rarity": "rare"}
 ]
 
 EVENTS = [
@@ -65,7 +69,6 @@ def init_db():
         event_data TEXT DEFAULT '{{}}'
     )''')
     
-    # ИСПРАВЛЕНО: убран CHECK для совместимости с PostgreSQL
     c.execute(f'''CREATE TABLE IF NOT EXISTS boss (
         id INTEGER PRIMARY KEY, 
         name TEXT DEFAULT 'Огненный Дракон', 
@@ -75,11 +78,10 @@ def init_db():
         status TEXT DEFAULT 'active'
     )''')
     
-    # Вставляем босса если нет
     try:
         c.execute(f"INSERT INTO boss (id, name, hp, max_hp, level, status) VALUES (1, 'Огненный Дракон', 10000, 10000, 1, 'active') ON CONFLICT (id) DO NOTHING")
     except:
-        pass  # Игнорируем если уже существует
+        pass
     
     conn.commit()
     conn.close()
@@ -105,29 +107,16 @@ def get_player(chat_id):
     player["upgrades"] = json.loads(player.get("upgrades") or "{}")
     player["achievements"] = json.loads(player.get("achievements") or "[]")
     player["event_data"] = json.loads(player.get("event_data") or "{}")
-    raw_q = player.get("quests_data")
-    q_data = json.loads(raw_q) if isinstance(raw_q, str) and raw_q else (raw_q if isinstance(raw_q, dict) else {})
     
     now = time.time(); mult = float(player.get("prestige_mult") or 1.0)
     
-    # Активное событие
-    event_active = False
-    current_event = None
-    if player["event_data"].get("end_time", 0) > now:
-        event_active = True
-        current_event = next((e for e in EVENTS if e["id"] == player["event_data"]["event_id"]), None)
-        if current_event:
-            effect = current_event["effect"]
-            if "passive_mult" in effect: mult *= effect["passive_mult"]
-            if "click_mult" in effect: player["click_power"] = int((player.get("click_power") or 10) * effect["click_mult"])
+    # Проверка и выдача достижений
+    new_achievements = check_and_grant_achievements(player, c, chat_id)
     
     if player.get("last_update") and player.get("passive_income", 0) > 0:
         sec = now - player["last_update"]
         if sec > 1:
             earned = int(player["passive_income"] * sec * mult)
-            if event_active and current_event and "bonus_per_sec" in current_event["effect"]:
-                earned += int(current_event["effect"]["bonus_per_sec"] * sec)
-            
             player["balance"] += earned; player["total_earned"] += earned
             if player.get("referred_by"):
                 bonus = int(earned * 0.01)
@@ -137,13 +126,45 @@ def get_player(chat_id):
     conn.commit(); conn.close()
     player["prestige_points"] = player.get("prestige_points") or 0
     player["total_prestiges"] = player.get("total_prestiges") or 0
-    return jsonify(player)
+    return jsonify({**player, "new_achievements": new_achievements})
+
+def check_and_grant_achievements(player, cursor, chat_id):
+    """Проверяет и выдает новые достижения"""
+    achieved_ids = [a["id"] for a in player.get("achievements", [])]
+    new_achs = []
+    
+    for ach in ACHIEVEMENTS:
+        if ach["id"] in achieved_ids:
+            continue
+        
+        # Получаем текущее значение
+        val = 0
+        if ach["type"] == "clicks":
+            val = player.get("clicks", 0)
+        elif ach["type"] == "total_earned":
+            val = player.get("total_earned", 0)
+        elif ach["type"] == "upgrades_count":
+            val = sum(player.get("upgrades", {}).values())
+        elif ach["type"] == "prestiges":
+            val = player.get("total_prestiges", 0)
+        
+        # Если достигли цели
+        if val >= ach["target"]:
+            new_achs.append(ach)
+            player["achievements"].append(ach)
+            player["balance"] += ach["reward"]
+            
+            # Сохраняем в БД
+            cursor.execute(f'UPDATE players SET achievements = {PARAM}, balance = {PARAM} WHERE chat_id = {PARAM}',
+                          (json.dumps(player["achievements"]), player["balance"], chat_id))
+    
+    return new_achs
 
 @app.route('/api/click/<chat_id>', methods=['POST'])
 def click(chat_id):
     try:
         conn = get_db(); c = conn.cursor()
-        c.execute(f'SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult, event_data FROM players WHERE chat_id = {PARAM}', (chat_id,))
+        c.execute(f'SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult, event_data, achievements FROM players WHERE chat_id = {PARAM}', (chat_id,))
         row = c.fetchone()
         
         pwr, mult, dmg = 10, 1.0, 10
@@ -171,13 +192,18 @@ def click(chat_id):
                 last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
                 VALUES ({PARAM}, 10, 1, 1, 0, 10, '{{}}', {PARAM}, '[]', 10, {PARAM}, '{{}}', 0, 1.0, '{{}}')''', (chat_id, time.time(), ref_code))
             conn.commit()
-            res = {"balance": 10, "clicks": 1, "level": 1, "click_power": pwr, "upgrades": {}, "total_earned": 10, "prestige_mult": mult, "boss_dmg": boss_dmg}
+            res = {"balance": 10, "clicks": 1, "level": 1, "click_power": pwr, "upgrades": {}, "total_earned": 10, "prestige_mult": mult, "boss_dmg": boss_dmg, "new_achievements": []}
         else:
             nb = (rd.get("balance") or 0) + dmg
             nc = (rd.get("clicks") or 0) + 1; nt = (rd.get("total_earned") or 0) + dmg
             c.execute(f'UPDATE players SET balance={PARAM}, clicks={PARAM}, total_earned={PARAM}, last_update={PARAM} WHERE chat_id={PARAM}', (nb, nc, nt, time.time(), chat_id))
             conn.commit()
-            res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(rd.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult, "boss_dmg": boss_dmg}
+            
+            # Проверяем достижения после клика
+            rd["balance"] = nb; rd["clicks"] = nc; rd["total_earned"] = nt
+            new_achs = check_and_grant_achievements(rd, c, chat_id)
+            
+            res = {"balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr, "upgrades": json.loads(rd.get("upgrades") or "{}"), "total_earned": nt, "prestige_mult": mult, "boss_dmg": boss_dmg, "new_achievements": new_achs}
         
         c.execute("SELECT hp, max_hp, level FROM boss WHERE id = 1")
         boss_row = c.fetchone()
@@ -204,7 +230,7 @@ def get_shop(): return jsonify(UPGRADES)
 def buy_upgrade(chat_id, upgrade_id):
     if upgrade_id not in UPGRADES: return jsonify({"error": "Invalid"}), 400
     conn = get_db(); c = conn.cursor()
-    c.execute(f'SELECT balance, upgrades, click_power, passive_income FROM players WHERE chat_id = {PARAM}', (chat_id,))
+    c.execute(f'SELECT balance, upgrades, click_power, passive_income, achievements FROM players WHERE chat_id = {PARAM}', (chat_id,))
     row = c.fetchone()
     if not row: conn.close(); return jsonify({"error": "Not found"}), 404
     p = dict(row); p["upgrades"] = json.loads(p["upgrades"] or "{}")
@@ -215,8 +241,14 @@ def buy_upgrade(chat_id, upgrade_id):
     npwr = (p["click_power"] or 10) + (u.get("power", 0) if u["type"]=="click" else 0)
     npass = (p["passive_income"] or 0) + (u.get("income", 0) if u["type"]=="passive" else 0)
     c.execute(f'UPDATE players SET balance={PARAM}, upgrades={PARAM}, click_power={PARAM}, passive_income={PARAM}, last_update={PARAM} WHERE chat_id={PARAM}', (nb, json.dumps(nu), npwr, npass, time.time(), chat_id))
-    conn.commit(); conn.close()
-    return jsonify({"balance": nb, "click_power": npwr, "passive_income": npass, "upgrades": nu, "success": True})
+    conn.commit()
+    
+    # Проверяем достижения после покупки
+    p["balance"] = nb; p["upgrades"] = nu
+    new_achs = check_and_grant_achievements(p, c, chat_id)
+    
+    conn.close()
+    return jsonify({"balance": nb, "click_power": npwr, "passive_income": npass, "upgrades": nu, "success": True, "new_achievements": new_achs})
 
 @app.route('/api/leaderboard', methods=['GET'])
 def leaderboard():
