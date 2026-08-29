@@ -1,0 +1,265 @@
+openapi: 3.0.3
+info:
+  title: Corp Tycoon API
+  description: |
+    API для игры-кликера Corp Tycoon.
+    
+    ## Возможности:
+    - Тапать и зарабатывать
+    - Покупать улучшения
+    - Сражаться с боссом
+    - Получать достижения
+    - Перерождаться для бонусов
+    
+  version: 2.1.0
+  contact:
+    name: GitHub
+    url: https://github.com/Redbox777/corp-bot-webapp
+
+servers:
+  - url: https://corp-bot-webapp.onrender.com/api
+    description: Production server
+  - url: http://localhost:5000/api
+    description: Development server
+
+tags:
+  - name: Health
+    description: Проверка работоспособности
+  - name: Player
+    description: Игрок и клики
+  - name: Shop
+    description: Магазин улучшений
+  - name: Boss
+    description: Босс и сражения
+  - name: Achievements
+    description: Достижения
+  - name: Stats
+    description: Статистика и кэш
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Проверка здоровья API
+      description: Возвращает статус всех сервисов
+      responses:
+        '200':
+          description: API работает
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /player/{chat_id}:
+    get:
+      tags:
+        - Player
+      summary: Получить данные игрока
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Данные игрока
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+
+  /click/{chat_id}:
+    post:
+      tags:
+        - Player
+      summary: Сделать клик
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Клик обработан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClickResponse'
+        '429':
+          description: Слишком много запросов
+
+  /shop:
+    get:
+      tags:
+        - Shop
+      summary: Получить список улучшений
+      responses:
+        '200':
+          description: Список улучшений
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/Upgrade'
+
+  /buy/{chat_id}/{upgrade_id}:
+    post:
+      tags:
+        - Shop
+      summary: Купить улучшение
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: upgrade_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Покупка успешна
+        '400':
+          description: Недостаточно денег
+
+  /boss_status:
+    get:
+      tags:
+        - Boss
+      summary: Получить статус босса
+      responses:
+        '200':
+          description: Данные босса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Boss'
+
+  /achievements:
+    get:
+      tags:
+        - Achievements
+      summary: Получить список достижений
+      responses:
+        '200':
+          description: Список достижений
+
+  /stats:
+    get:
+      tags:
+        - Stats
+      summary: Статистика кэша и сервисов
+      responses:
+        '200':
+          description: Статистика
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: 2.1.0
+        architecture:
+          type: string
+          example: microservices
+        services:
+          type: object
+          additionalProperties:
+            type: string
+
+    Player:
+      type: object
+      properties:
+        chat_id:
+          type: string
+        balance:
+          type: integer
+        clicks:
+          type: integer
+        level:
+          type: integer
+        click_power:
+          type: integer
+        upgrades:
+          type: object
+        prestige_mult:
+          type: number
+          format: float
+
+    ClickResponse:
+      type: object
+      properties:
+        balance:
+          type: integer
+        clicks:
+          type: integer
+        level:
+          type: integer
+        boss_dmg:
+          type: integer
+        boss_killed:
+          type: object
+          nullable: true
+
+    Upgrade:
+      type: object
+      properties:
+        name:
+          type: string
+        cost:
+          type: integer
+        income:
+          type: integer
+        power:
+          type: integer
+        type:
+          type: string
+          enum: [passive, click]
+        icon:
+          type: string
+
+    Boss:
+      type: object
+      properties:
+        name:
+          type: string
+        hp:
+          type: integer
+        max_hp:
+          type: integer
+        level:
+          type: integer
+
+    StatsResponse:
+      type: object
+      properties:
+        cache:
+          type: object
+          properties:
+            hits:
+              type: integer
+            misses:
+              type: integer
+            hit_rate_percent:
+              type: number
+            efficiency:
+              type: string
+        celery:
+          type: object
+        timestamp:
+          type: number
