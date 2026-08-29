@@ -50,108 +50,100 @@ def init_db():
     conn.commit()
     conn.close()
 
-def get_player_data(chat_id: str):
-    """
-    Получить данные игрока (С ИСПРАВЛЕННЫМ КЭШЕМ)
-    Гарантирует что кэш содержит полные данные
-    """
-    conn = get_db()
-    c = conn.cursor()
+class Player:
+    """Модель игрока"""
     
-    # Проверяем есть ли игрок
-    c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
-    row = c.fetchone()
-    
-    if not row:
-        # Создаём нового игрока
-        ref_code = str(int(time.time()))[-6:]
-        now = time.time()
-        c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, 
-            upgrades, last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
-            VALUES (?, 0, 0, 1, 0, 10, '{}', ?, '[]', 0, ?, '{}', 0, 1.0, '{}')''', 
-            (chat_id, now, ref_code))
-        conn.commit()
-        
-        # СРАЗУ перечитываем чтобы получить полные данные
+    @staticmethod
+    def get_by_chat_id(conn, chat_id: str) -> Dict[str, Any]:
+        """Получить игрока"""
+        c = conn.cursor()
         c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
         row = c.fetchone()
-    
-    player = dict(row) if row else {}
-    
-    # Парсим JSON поля
-    try:
-        player["upgrades"] = json.loads(player.get("upgrades") or "{}")
-        player["achievements"] = json.loads(player.get("achievements") or "[]")
-        player["event_data"] = json.loads(player.get("event_data") or "{}")
-        player["quests_data"] = json.loads(player.get("quests_data") or "{}")
-    except:
-        # Если ошибка парсинга — используем дефолтные значения
-        player["upgrades"] = {}
-        player["achievements"] = []
-        player["event_data"] = {}
-        player["quests_data"] = {}
-    
-    # Кэшируем ТОЛЬКО полные данные
-    cache_key = f"player:{chat_id}"
-    cache_set(cache_key, player, ttl=60)  # Уменьшили TTL до 60 сек для свежести
-    
-    conn.close()
-    return player
-
-def process_click(chat_id: str):
-    """
-    Обработать клик (Атомарное обновление)
-    """
-    conn = get_db()
-    c = conn.cursor()
-    
-    # Получаем текущую силу клика
-    c.execute('SELECT click_power, prestige_mult FROM players WHERE chat_id = ?', (chat_id,))
-    row = c.fetchone()
-    
-    if not row:
-        # Если игрока нет — создаём
-        ref_code = str(int(time.time()))[-6:]
-        now = time.time()
-        c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
-            last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
-            VALUES (?, 10, 1, 1, 0, 10, '{}', ?, '[]', 10, ?, '{}', 0, 1.0, '{}')''', 
-            (chat_id, now, ref_code))
-        conn.commit()
+        
+        if not row:
+            ref_code = str(int(time.time()))[-6:]
+            c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, 
+                upgrades, last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
+                VALUES (?, 0, 0, 1, 0, 10, '{}', ?, '[]', 0, ?, '{}', 0, 1.0, '{}')''', 
+                (chat_id, time.time(), ref_code))
+            conn.commit()
+            c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
+            row = c.fetchone()
+        
+        player = dict(row) if row else {}
+        
+        # Безопасный парсинг JSON
+        try:
+            upgrades_data = player.get("upgrades")
+            player["upgrades"] = json.loads(upgrades_data) if isinstance(upgrades_data, str) and upgrades_data else (upgrades_data or {})
+            
+            achievements_data = player.get("achievements")
+            player["achievements"] = json.loads(achievements_data) if isinstance(achievements_data, str) and achievements_data else (achievements_data or [])
+            
+            event_data = player.get("event_data")
+            player["event_data"] = json.loads(event_data) if isinstance(event_data, str) and event_data else (event_data or {})
+        except:
+            player["upgrades"] = {}
+            player["achievements"] = []
+            player["event_data"] = {}
+        
         conn.close()
-        return {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
+        return player
     
-    rd = dict(row)
-    pwr = rd.get("click_power") or 10
-    mult = float(rd.get("prestige_mult") or 1.0)
-    dmg = int(pwr * mult)
-    
-    # АТОМАРНОЕ обновление (защищено от гонок)
-    c.execute('''UPDATE players 
-                 SET balance = balance + ?, 
-                     clicks = clicks + 1, 
-                     total_earned = total_earned + ?, 
-                     last_update = ? 
-                 WHERE chat_id = ?''', 
-             (dmg, dmg, time.time(), chat_id))
-    conn.commit()
-    
-    # СРАЗУ перечитываем актуальный баланс
-    c.execute('SELECT balance, clicks, total_earned FROM players WHERE chat_id = ?', (chat_id,))
-    final_row = c.fetchone()
-    
-    result = {
-        "balance": final_row["balance"],
-        "clicks": final_row["clicks"],
-        "level": (final_row["clicks"] // 100) + 1,
-        "click_power": pwr,
-        "upgrades": {},  # Упрощаем ответ
-        "total_earned": final_row["total_earned"],
-        "prestige_mult": mult
-    }
-    
-    # Инвалидируем кэш
-    cache_delete(f"player:{chat_id}")
-    
-    conn.close()
-    return result
+    @staticmethod
+    def process_click(conn, chat_id: str) -> Dict[str, Any]:
+        """Обработать клик (ИСПРАВЛЕНО: без повторного запроса)"""
+        c = conn.cursor()
+        
+        # 1. Получаем текущие параметры
+        c.execute('SELECT click_power, balance, clicks, total_earned, prestige_mult, upgrades FROM players WHERE chat_id = ?', (chat_id,))
+        row = c.fetchone()
+        
+        if not row:
+            # Если игрока нет - создаем
+            ref_code = str(int(time.time()))[-6:]
+            c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
+                last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
+                VALUES (?, 10, 1, 1, 0, 10, '{}', ?, '[]', 10, ?, '{}', 0, 1.0, '{}')''', 
+                (chat_id, time.time(), ref_code))
+            conn.commit()
+            return {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
+        
+        rd = dict(row)
+        pwr = rd.get("click_power") or 10
+        mult = float(rd.get("prestige_mult") or 1.0)
+        dmg = int(pwr * mult)
+        
+        # 2. АТОМАРНОЕ ОБНОВЛЕНИЕ (База сама сложит баланс)
+        c.execute('''UPDATE players 
+                     SET balance = balance + ?, 
+                         clicks = clicks + 1, 
+                         total_earned = total_earned + ?, 
+                         last_update = ? 
+                     WHERE chat_id = ?''', 
+                 (dmg, dmg, time.time(), chat_id))
+        conn.commit()
+        
+        # 3. Считаем новые значения на основе прочитанного (это безопасно)
+        new_balance = (rd.get("balance") or 0) + dmg
+        new_clicks = (rd.get("clicks") or 0) + 1
+        new_total = (rd.get("total_earned") or 0) + dmg
+        
+        # Безопасный парсинг upgrades
+        upgrades_data = rd.get("upgrades")
+        upgrades = json.loads(upgrades_data) if isinstance(upgrades_data, str) and upgrades_data else (upgrades_data or {})
+        
+        result = {
+            "balance": new_balance,
+            "clicks": new_clicks,
+            "level": (new_clicks // 100) + 1,
+            "click_power": pwr,
+            "upgrades": upgrades,
+            "total_earned": new_total,
+            "prestige_mult": mult
+        }
+        
+        # Инвалидируем кэш
+        cache_delete(f"player:{chat_id}")
+        
+        return result
