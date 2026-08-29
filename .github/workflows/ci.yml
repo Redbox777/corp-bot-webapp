@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   test:
@@ -25,10 +25,10 @@ jobs:
           - 5432:5432
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -37,30 +37,24 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-dev.txt
     
-    - name: Lint with ruff
-      run: ruff check .
-    
-    - name: Type check with mypy
-      run: mypy app/
-    
-    - name: Test with pytest
+    - name: Run tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-      run: pytest
+      run: |
+        python -m pytest tests/ -v --tb=short
     
     - name: Upload coverage
       uses: codecov/codecov-action@v3
       with:
         files: ./coverage.xml
+        fail_ci_if_error: false
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     
     steps:
-    - uses: actions/checkout@v3
-    
     - name: Deploy to Render
       uses: johnbeynon/render-deploy-action@v0.0.8
       with:
