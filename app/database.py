@@ -10,7 +10,7 @@ def get_db():
     db_url = os.environ.get('DATABASE_URL', '')
     
     if db_url:
-        import psycopg
+        import psycopg  # ✅ ИСПРАВЛЕНО: правильное название
         conn = psycopg.connect(db_url, row_factory=psycopg.rows.dict_row)
         return conn
     else:
@@ -92,7 +92,7 @@ class Player:
     
     @staticmethod
     def process_click(conn, chat_id: str) -> Dict[str, Any]:
-        """Обработать клик (ИСПРАВЛЕНО: без повторного запроса)"""
+        """Обработать клик"""
         c = conn.cursor()
         
         # 1. Получаем текущие параметры
@@ -100,7 +100,6 @@ class Player:
         row = c.fetchone()
         
         if not row:
-            # Если игрока нет - создаем
             ref_code = str(int(time.time()))[-6:]
             c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
                 last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
@@ -114,7 +113,7 @@ class Player:
         mult = float(rd.get("prestige_mult") or 1.0)
         dmg = int(pwr * mult)
         
-        # 2. АТОМАРНОЕ ОБНОВЛЕНИЕ (База сама сложит баланс)
+        # 2. АТОМАРНОЕ ОБНОВЛЕНИЕ
         c.execute('''UPDATE players 
                      SET balance = balance + ?, 
                          clicks = clicks + 1, 
@@ -124,7 +123,7 @@ class Player:
                  (dmg, dmg, time.time(), chat_id))
         conn.commit()
         
-        # 3. Считаем новые значения на основе прочитанного (это безопасно)
+        # 3. Считаем новые значения на основе прочитанного
         new_balance = (rd.get("balance") or 0) + dmg
         new_clicks = (rd.get("clicks") or 0) + 1
         new_total = (rd.get("total_earned") or 0) + dmg
@@ -143,7 +142,5 @@ class Player:
             "prestige_mult": mult
         }
         
-        # Инвалидируем кэш
         cache_delete(f"player:{chat_id}")
-        
         return result
