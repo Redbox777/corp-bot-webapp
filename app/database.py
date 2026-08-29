@@ -1,18 +1,19 @@
 import sqlite3
 import os
-from typing import Any, Dict
+import json
+import time
+from typing import Any, Dict, Optional
+from app.utils.cache import cache_get, cache_set, cache_delete, cached
 
 def get_db():
     """Получить соединение с БД"""
     db_url = os.environ.get('DATABASE_URL', '')
     
     if db_url:
-        # PostgreSQL (на Render)
         import psycopg
         conn = psycopg.connect(db_url, row_factory=psycopg.rows.dict_row)
         return conn
     else:
-        # SQLite (локально для тестов)
         conn = sqlite3.connect('players.db', timeout=10)
         conn.row_factory = sqlite3.Row
         return conn
@@ -50,49 +51,53 @@ def init_db():
     conn.close()
 
 class Player:
-    """Модель игрока"""
+    """Модель игрока с кэшированием"""
     
     @staticmethod
-    def get_by_chat_id(conn, chat_id: str) -> Dict[str, Any]:
-        """Получить игрока по chat_id"""
+    @cached(ttl=300, key_prefix="player")
+    def get_by_chat_id_cached(conn, chat_id: str) -> Dict[str, Any]:
+        """Получить игрока (с кэшем)"""
         c = conn.cursor()
         c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
         row = c.fetchone()
         
         if not row:
-            # Создаём нового игрока
-            ref_code = str(int(__import__('time').time()))[-6:]
+            ref_code = str(int(time.time()))[-6:]
             c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, 
                 upgrades, last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
                 VALUES (?, 0, 0, 1, 0, 10, '{}', ?, '[]', 0, ?, '{}', 0, 1.0, '{}')''', 
-                (chat_id, __import__('time').time(), ref_code))
+                (chat_id, time.time(), ref_code))
             conn.commit()
             c.execute('SELECT * FROM players WHERE chat_id = ?', (chat_id,))
             row = c.fetchone()
         
         player = dict(row) if row else {}
-        player["upgrades"] = __import__('json').loads(player.get("upgrades") or "{}")
-        player["achievements"] = __import__('json').loads(player.get("achievements") or "[]")
-        player["event_data"] = __import__('json').loads(player.get("event_data") or "{}")
+        player["upgrades"] = json.loads(player.get("upgrades") or "{}")
+        player["achievements"] = json.loads(player.get("achievements") or "[]")
+        player["event_data"] = json.loads(player.get("event_data") or "{}")
         
-        conn.close()
         return player
     
     @staticmethod
+    def get_by_chat_id(conn, chat_id: str) -> Dict[str, Any]:
+        """Получить игрока (wrapper с кэшем)"""
+        return Player.get_by_chat_id_cached(conn, chat_id)
+    
+    @staticmethod
     def process_click(conn, chat_id: str) -> Dict[str, Any]:
-        """Обработать клик"""
+        """Обработать клик (с инвалидацией кэша)"""
         c = conn.cursor()
         c.execute('SELECT click_power, balance, clicks, upgrades, total_earned, prestige_mult FROM players WHERE chat_id = ?', (chat_id,))
         row = c.fetchone()
         
         if not row:
-            ref_code = str(int(__import__('time').time()))[-6:]
+            ref_code = str(int(time.time()))[-6:]
             c.execute('''INSERT INTO players (chat_id, balance, clicks, level, passive_income, click_power, upgrades, 
                 last_update, achievements, total_earned, referral_code, quests_data, prestige_points, prestige_mult, event_data)
                 VALUES (?, 10, 1, 1, 0, 10, '{}', ?, '[]', 10, ?, '{}', 0, 1.0, '{}')''', 
-                (chat_id, __import__('time').time(), ref_code))
+                (chat_id, time.time(), ref_code))
             conn.commit()
-            return {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
+            result = {"balance": 10, "clicks": 1, "level": 1, "click_power": 10, "upgrades": {}, "total_earned": 10, "prestige_mult": 1.0}
         else:
             rd = dict(row)
             pwr = rd.get("click_power") or 10
@@ -104,11 +109,16 @@ class Player:
             nt = (rd.get("total_earned") or 0) + dmg
             
             c.execute('UPDATE players SET balance=?, clicks=?, total_earned=?, last_update=? WHERE chat_id=?', 
-                     (nb, nc, nt, __import__('time').time(), chat_id))
+                     (nb, nc, nt, time.time(), chat_id))
             conn.commit()
             
-            return {
+            result = {
                 "balance": nb, "clicks": nc, "level": (nc//100)+1, "click_power": pwr,
-                "upgrades": __import__('json').loads(rd.get("upgrades") or "{}"),
+                "upgrades": json.loads(rd.get("upgrades") or "{}"),
                 "total_earned": nt, "prestige_mult": mult
             }
+        
+        # Инвалидируем кэш
+        cache_delete(f"player:{chat_id}")
+        
+        return result

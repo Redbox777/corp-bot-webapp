@@ -11,5 +11,3 @@ htmlcov/
 venv/
 .venv/
 players.db
-Dockerfile
-docker-compose.yml
