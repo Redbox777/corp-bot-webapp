@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI/CD with Testing
 
 on:
   push:
@@ -37,26 +37,31 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-dev.txt
     
-    - name: Run tests
+    - name: Run unit tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       run: |
-        python -m pytest tests/ -v --tb=short
+        python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml
     
     - name: Upload coverage
       uses: codecov/codecov-action@v3
       with:
         files: ./coverage.xml
         fail_ci_if_error: false
+    
+    - name: Check for logs directory
+      run: |
+        mkdir -p logs
+        echo "Logs directory created"
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     
     steps:
     - name: Deploy to Render
       uses: johnbeynon/render-deploy-action@v0.0.8
       with:
-        service-id: ${{ secrets.RENDER_SERVICE_ID }}
-        api-key: ${{ secrets.RENDER_API_KEY }}
+        service-id: \${{ secrets.RENDER_SERVICE_ID }}
+        api-key: \${{ secrets.RENDER_API_KEY }}

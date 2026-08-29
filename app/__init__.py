@@ -110,3 +110,43 @@ def create_app():
         })
     
     return app
+
+# Endpoint для просмотра логов (только для админа!)
+@app.route('/admin/logs')
+def view_logs():
+    """Просмотр последних логов (защитить паролем!)"""
+    import os
+    
+    # Простая защита паролем
+    password = request.args.get('password')
+    if password != os.environ.get('ADMIN_PASSWORD', 'admin123'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    # Читаем последние ошибки
+    try:
+        with open('logs/errors_' + datetime.now().strftime("%Y%m") + '.log', 'r') as f:
+            lines = f.readlines()[-50:]  # Последние 50 строк
+        return jsonify({
+            "logs": ''.join(lines),
+            "timestamp": datetime.now().isoformat()
+        })
+    except FileNotFoundError:
+        return jsonify({"logs": "No errors yet", "timestamp": datetime.now().isoformat()})
+
+@app.route('/admin/bugs')
+def view_bugs():
+    """Просмотр багов"""
+    import os
+    
+    password = request.args.get('password')
+    if password != os.environ.get('ADMIN_PASSWORD', 'admin123'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        bugs = []
+        with open('logs/bugs.jsonl', 'r') as f:
+            for line in f.readlines()[-20:]:  # Последние 20 багов
+                bugs.append(json.loads(line))
+        return jsonify({"bugs": bugs})
+    except FileNotFoundError:
+        return jsonify({"bugs": [], "message": "No bugs recorded yet"})
